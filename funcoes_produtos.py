@@ -238,8 +238,6 @@ def salvar_produtos(produtos):
     with open("produtos.json", "w", encoding="utf-8") as arquivo:
         json.dump(produtos, arquivo, ensure_ascii=False, indent=4)
 
-    print("Produtos salvos no arquivo produtos.json.")
-
 
 def carregar_produtos():
     """
@@ -255,6 +253,21 @@ def carregar_produtos():
     except FileNotFoundError:
         print("Arquivo produtos.json não encontrado. Começando com lista vazia.")
         return []
+
+
+def mostrar_preco_medio_produtos(produtos):
+    if len(produtos) == 0:
+        print("Nenhum produto cadastrado.")
+        return
+
+    valor_total = 0
+
+    for produto in produtos:
+        valor_total += produto["preco"]
+
+    preco_medio = valor_total / len(produtos)
+
+    print(f"Preço médio dos produtos: R$ {preco_medio:.2f}")
 
 
 def mostrar_menu(produtos):
