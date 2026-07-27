@@ -285,7 +285,8 @@ def mostrar_menu(produtos):
         print("3 - Atualizar produto")
         print("4 - Remover produto")
         print("5 - Listar produtos")
-        print("6 - Sair")
+        print("6 - Mostrar preço médio dos produtos")
+        print("7 - Sair")
     
         opcao = ler_opcao_menu()
 
@@ -303,8 +304,11 @@ def mostrar_menu(produtos):
 
         elif opcao == "5":
             listar_produtos(produtos)
-
+        
         elif opcao == "6":
+            mostrar_preco_medio_produtos(produtos)
+
+        elif opcao == "7":
             print("Saindo do sistema.")
             break
 
