@@ -270,6 +270,31 @@ def mostrar_preco_medio_produtos(produtos):
     print(f"Preço médio dos produtos: R$ {preco_medio:.2f}")
 
 
+def listar_produtos_acima_do_preco(produtos):
+    if len(produtos) == 0:
+        print("Nenhum produto cadastrado.")
+        return
+
+    preco_minimo = ler_preco("Preço mínimo: ")
+
+    encontrou_produto = False
+
+    print(f"Produtos com preço maior ou igual a R$ {preco_minimo:.2f}:")
+
+    for produto in produtos:
+        if produto["preco"] >= preco_minimo:
+            produto_id = produto["id"]
+            nome = produto["nome"]
+            preco = produto["preco"]
+
+            print(f"ID {produto_id} - {nome}: R$ {preco:.2f}")
+
+            encontrou_produto = True
+
+    if encontrou_produto == False:
+        print("Nenhum produto encontrado nessa faixa de preço.")
+        
+
 def mostrar_menu(produtos):
     """
     Mostra o menu principal do sistema.
@@ -286,7 +311,8 @@ def mostrar_menu(produtos):
         print("4 - Remover produto")
         print("5 - Listar produtos")
         print("6 - Mostrar preço médio dos produtos")
-        print("7 - Sair")
+        print("7 - Listar produtos acima de um preço")
+        print("8 - Sair")
     
         opcao = ler_opcao_menu()
 
@@ -309,6 +335,9 @@ def mostrar_menu(produtos):
             mostrar_preco_medio_produtos(produtos)
 
         elif opcao == "7":
+            listar_produtos_acima_do_preco(produtos)
+
+        elif opcao == "8":
             print("Saindo do sistema.")
             break
 
