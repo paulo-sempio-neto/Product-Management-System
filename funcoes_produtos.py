@@ -295,6 +295,16 @@ def listar_produtos_acima_do_preco(produtos):
         print("Nenhum produto encontrado nessa faixa de preço.")
         
 
+def filtrar_produtos_por_parte_do_nome(produtos, parte_nome):
+    produtos_encontrados = []
+
+    for produto in produtos:
+        if parte_nome in produto["nome"].lower():
+            produtos_encontrados.append(produto)
+
+    return produtos_encontrados
+
+
 def buscar_produtos_por_parte_do_nome(produtos):
     if len(produtos) == 0:
         print("Nenhum produto cadastrado.")
@@ -306,22 +316,20 @@ def buscar_produtos_por_parte_do_nome(produtos):
         print("Nome inválido.")
         return
 
-    encontrou_produto = False
+    produtos_encontrados = filtrar_produtos_por_parte_do_nome(produtos, parte_nome)
+
+    if len(produtos_encontrados) == 0:
+        print("Nenhum produto encontrado com esse nome.")
+        return
 
     print(f"Produtos encontrados com \"{parte_nome}\":")
 
-    for produto in produtos:
-        if parte_nome in produto["nome"].lower():
-            produto_id = produto["id"]
-            nome = produto["nome"]
-            preco = produto["preco"]
+    for produto in produtos_encontrados:
+        produto_id = produto["id"]
+        nome = produto["nome"]
+        preco = produto["preco"]
 
-            print(f"ID {produto_id} - {nome}: R$ {preco:.2f}")
-
-            encontrou_produto = True
-
-    if encontrou_produto == False:
-        print("Nenhum produto encontrado com esse nome.")
+        print(f"ID {produto_id} - {nome}: R$ {preco:.2f}")
 
 
 def mostrar_menu(produtos):
