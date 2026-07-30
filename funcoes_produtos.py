@@ -295,6 +295,35 @@ def listar_produtos_acima_do_preco(produtos):
         print("Nenhum produto encontrado nessa faixa de preço.")
         
 
+def buscar_produtos_por_parte_do_nome(produtos):
+    if len(produtos) == 0:
+        print("Nenhum produto cadastrado.")
+        return
+
+    parte_nome = input("Digite parte do nome do produto: ").strip().lower()
+
+    if parte_nome == "":
+        print("Nome inválido.")
+        return
+
+    encontrou_produto = False
+
+    print(f"Produtos encontrados com \"{parte_nome}\":")
+
+    for produto in produtos:
+        if parte_nome in produto["nome"].lower():
+            produto_id = produto["id"]
+            nome = produto["nome"]
+            preco = produto["preco"]
+
+            print(f"ID {produto_id} - {nome}: R$ {preco:.2f}")
+
+            encontrou_produto = True
+
+    if encontrou_produto == False:
+        print("Nenhum produto encontrado com esse nome.")
+
+
 def mostrar_menu(produtos):
     """
     Mostra o menu principal do sistema.
@@ -312,7 +341,8 @@ def mostrar_menu(produtos):
         print("5 - Listar produtos")
         print("6 - Mostrar preço médio dos produtos")
         print("7 - Listar produtos acima de um preço")
-        print("8 - Sair")
+        print("8 - Buscar produtos por parte do nome")
+        print("9 - Sair")
     
         opcao = ler_opcao_menu()
 
@@ -338,6 +368,9 @@ def mostrar_menu(produtos):
             listar_produtos_acima_do_preco(produtos)
 
         elif opcao == "8":
+            buscar_produtos_por_parte_do_nome(produtos)
+
+        elif opcao == "9":      
             print("Saindo do sistema.")
             break
 
