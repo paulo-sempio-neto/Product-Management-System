@@ -1,4 +1,5 @@
 import json
+import constants
 
 
 def read_price(message: str) -> float:
@@ -7,20 +8,20 @@ def read_price(message: str) -> float:
             price = float(input(message))
 
             if price < 0:
-                print("O preço não pode ser negativo.")
+                print(constants.ERROR_NEGATIVE_PRICE)
                 continue
 
             return price
 
         except ValueError:
-            print("Digite um preço válido.")
+            print(constants.ERROR_INVALID_PRICE)
 
 
 def read_product_name(message: str) -> None | str:
     name = input(message).strip().title()
 
     if name == "":
-        print("O nome do produto não pode ficar vazio.")
+        print(constants.ERROR_EMPTY_NAME)
         return None
 
     return name
@@ -31,18 +32,18 @@ def read_product_id(message: str) -> int | None:
         product_id = int(input(message))
 
         if product_id <= 0:
-            print("O ID deve ser maior que zero.")
+            print(constants.ERROR_INVALID_ID)
             return None
 
         return product_id
 
     except ValueError:
-        print("Digite um ID válido.")
+        print(constants.ERROR_INVALID_ID_VALUE)
         return None
 
 
 def read_menu_option() -> str:
-    return input("Escolha uma opção: ").strip()
+    return input(constants.PROMPT_MENU_OPTION).strip()
 
 
 def find_product_by_name(products: list, name: str) -> dict | None:
@@ -71,7 +72,7 @@ def generate_next_id(products: list) -> int:
 
 
 def create_product(products: list) -> None:
-    name = read_product_name("Nome do produto: ")
+    name = read_product_name(constants.PROMPT_PRODUCT_NAME)
 
     if name is None:
         return
@@ -79,10 +80,10 @@ def create_product(products: list) -> None:
     existing_product = find_product_by_name(products, name)
 
     if existing_product is not None:
-        print("Produto já cadastrado.")
+        print(constants.ERROR_PRODUCT_DUPLICATE)
         return
 
-    price = read_price("Preço do produto: ")
+    price = read_price(constants.PROMPT_PRODUCT_PRICE )
     product_id = generate_next_id(products)
 
     product = {
@@ -94,11 +95,11 @@ def create_product(products: list) -> None:
     products.append(product)
     save_products(products)
 
-    print("Produto cadastrado com sucesso.")
+    print(constants.SUCCESS_PRODUCT_CREATED)
 
 
 def search_product(products: list) -> None:
-    product_id = read_product_id("ID do produto: ")
+    product_id = read_product_id(constants.PROMPT_PRODUCT_ID)
 
     if product_id is None:
         return
@@ -106,7 +107,7 @@ def search_product(products: list) -> None:
     product = find_product_by_id(products, product_id)
 
     if product is None:
-        print("Produto não encontrado.")
+        print(constants.ERROR_PRODUCT_NOT_FOUND)
         return
 
     print(f"ID: {product['id']}")
@@ -115,7 +116,7 @@ def search_product(products: list) -> None:
 
 
 def update_product(products: list) -> None:
-    product_id = read_product_id("ID do produto: ")
+    product_id = read_product_id(constants.PROMPT_PRODUCT_ID)
 
     if product_id is None:
         return
@@ -123,19 +124,19 @@ def update_product(products: list) -> None:
     product = find_product_by_id(products, product_id)
 
     if product is None:
-        print("Produto não encontrado.")
+        print(constants.ERROR_PRODUCT_NOT_FOUND)
         return
 
-    new_price = read_price("Novo preço do produto: ")
+    new_price = read_price(constants.PROMPT_NEW_PRICE)
 
     product["price"] = new_price
     save_products(products)
 
-    print("Produto atualizado com sucesso.")
+    print(constants.SUCCESS_PRODUCT_UPDATED)
 
 
 def delete_product(products: list) -> None:
-    product_id = read_product_id("ID do produto: ")
+    product_id = read_product_id(constants.PROMPT_PRODUCT_ID)
 
     if product_id is None:
         return
@@ -143,45 +144,45 @@ def delete_product(products: list) -> None:
     product = find_product_by_id(products, product_id)
 
     if product is None:
-        print("Produto não encontrado.")
+        print(constants.ERROR_PRODUCT_NOT_FOUND)
         return
 
     products.remove(product)
     save_products(products)
 
-    print("Produto removido com sucesso.")
+    print(constants.SUCCESS_PRODUCT_DELETED)
 
 
 def list_products(products: list) -> None:
     if len(products) == 0:
-        print("Nenhum produto cadastrado.")
+        print(constants.ERROR_NO_PRODUCTS)
         return
 
-    print("Lista de produtos:")
+    print(constants.MSG_PRODUCT_LIST)
 
     for product in products:
         print(f"ID {product['id']} - {product['name']}: R$ {product['price']:.2f}")
 
 
 def save_products(products: list) -> None:
-    with open("produtos.json", "w", encoding="utf-8") as products_file:
+    with open(constants.FILE_NAME, "w", encoding="utf-8") as products_file:
         json.dump(products, products_file, ensure_ascii=False, indent=4)
 
 
 def load_products() -> list:
     try:
-        with open("produtos.json", "r", encoding="utf-8") as products_file:
-            print("Produtos carregados do arquivo produtos.json.")
+        with open(constants.FILE_NAME, "r", encoding="utf-8") as products_file:
+            print(constants.MSG_LOAD_SUCCESS)
             return json.load(products_file)
 
     except FileNotFoundError:
-        print("Arquivo produtos.json não encontrado. Começando com lista vazia.")
+        print(constants.MSG_LOAD_ERROR)
         return []
 
 
 def show_average_product_price(products: list) -> None:
     if len(products) == 0:
-        print("Nenhum produto cadastrado.")
+        print(constants.MSG_NO_PRODUCTS)
         return
 
     total_value = 0
@@ -196,10 +197,10 @@ def show_average_product_price(products: list) -> None:
 
 def list_products_above_price(products: list) -> None:
     if len(products) == 0:
-        print("Nenhum produto cadastrado.")
+        print(constants.MSG_NO_PRODUCTS)
         return
 
-    minimum_price = read_price("Preço mínimo: ")
+    minimum_price = read_price(constants.PROMPT_MINIMUM_PRICE)
 
     found_product = False
 
@@ -216,7 +217,7 @@ def list_products_above_price(products: list) -> None:
             found_product = True
 
     if found_product == False:
-        print("Nenhum produto encontrado nessa faixa de preço.")
+        print(constants.MSG_NO_PRODUCTS_ABOVE)
 
 
 def filter_products_by_partial_name(products: list, partial_name: str) -> list:
@@ -231,19 +232,19 @@ def filter_products_by_partial_name(products: list, partial_name: str) -> list:
 
 def search_products_by_partial_name(products: list) -> None:
     if len(products) == 0:
-        print("Nenhum produto cadastrado.")
+        print(constants.MSG_NO_PRODUCTS)
         return
 
-    partial_name = input("Digite parte do nome do produto: ").strip().lower()
+    partial_name = input(constants.PROMPT_PARTIAL_NAME).strip().lower()
 
     if partial_name == "":
-        print("Nome inválido.")
+        print(constants.ERROR_INVALID_NAME)
         return
 
     found_products = filter_products_by_partial_name(products, partial_name)
 
     if len(found_products) == 0:
-        print("Nenhum produto encontrado com esse nome.")
+        print(constants.MSG_NO_PRODUCTS_FOUND)
         return
 
     print(f"Produtos encontrados com \"{partial_name}\":")
@@ -259,16 +260,9 @@ def search_products_by_partial_name(products: list) -> None:
 def show_menu(products: list) -> None:
     while True:
         print()
-        print("=== Sistema de Produtos ===")
-        print("1 - Cadastrar produto")
-        print("2 - Buscar produto")
-        print("3 - Atualizar produto")
-        print("4 - Remover produto")
-        print("5 - Listar produtos")
-        print("6 - Mostrar preço médio dos produtos")
-        print("7 - Listar produtos acima de um preço")
-        print("8 - Buscar produtos por parte do nome")
-        print("9 - Sair")
+        print(constants.MENU_TITLE)
+        for key, value in constants.MENU_OPTIONS.items():
+            print(f"{key} - {value}")
 
         option = read_menu_option()
 
@@ -297,8 +291,8 @@ def show_menu(products: list) -> None:
             search_products_by_partial_name(products)
 
         elif option == "9":
-            print("Saindo do sistema.")
+            print(constants.MSG_EXIT_MENU)
             break
 
         else:
-            print("Opção inválida.")
+            print(constants.ERROR_INVALID_OPTION)
