@@ -1,7 +1,7 @@
 import json
 
 
-def read_price(message):
+def read_price(message: str) -> float:
     while True:
         try:
             price = float(input(message))
@@ -16,7 +16,7 @@ def read_price(message):
             print("Digite um preço válido.")
 
 
-def read_product_name(message):
+def read_product_name(message: str) -> None | str:
     name = input(message).strip().title()
 
     if name == "":
@@ -26,7 +26,7 @@ def read_product_name(message):
     return name
 
 
-def read_product_id(message):
+def read_product_id(message: str) -> int | None:
     try:
         product_id = int(input(message))
 
@@ -41,11 +41,11 @@ def read_product_id(message):
         return None
 
 
-def read_menu_option():
+def read_menu_option() -> str:
     return input("Escolha uma opção: ").strip()
 
 
-def find_product_by_name(products, name):
+def find_product_by_name(products: list, name: str) -> dict | None:
     for product in products:
         if product["name"] == name:
             return product
@@ -53,7 +53,7 @@ def find_product_by_name(products, name):
     return None
 
 
-def find_product_by_id(products, product_id):
+def find_product_by_id(products: list, product_id: int) -> dict | None:
     for product in products:
         if product["id"] == product_id:
             return product
@@ -61,7 +61,7 @@ def find_product_by_id(products, product_id):
     return None
 
 
-def generate_next_id(products):
+def generate_next_id(products: list) -> int:
     if len(products) == 0:
         return 1
 
@@ -70,7 +70,7 @@ def generate_next_id(products):
     return last_product["id"] + 1
 
 
-def create_product(products):
+def create_product(products: list) -> None:
     name = read_product_name("Nome do produto: ")
 
     if name is None:
@@ -97,7 +97,7 @@ def create_product(products):
     print("Produto cadastrado com sucesso.")
 
 
-def search_product(products):
+def search_product(products: list) -> None:
     product_id = read_product_id("ID do produto: ")
 
     if product_id is None:
@@ -114,7 +114,7 @@ def search_product(products):
     print(f"Preço: R$ {product['price']:.2f}")
 
 
-def update_product(products):
+def update_product(products: list) -> None:
     product_id = read_product_id("ID do produto: ")
 
     if product_id is None:
@@ -134,7 +134,7 @@ def update_product(products):
     print("Produto atualizado com sucesso.")
 
 
-def delete_product(products):
+def delete_product(products: list) -> None:
     product_id = read_product_id("ID do produto: ")
 
     if product_id is None:
@@ -152,7 +152,7 @@ def delete_product(products):
     print("Produto removido com sucesso.")
 
 
-def list_products(products):
+def list_products(products: list) -> None:
     if len(products) == 0:
         print("Nenhum produto cadastrado.")
         return
@@ -163,12 +163,12 @@ def list_products(products):
         print(f"ID {product['id']} - {product['name']}: R$ {product['price']:.2f}")
 
 
-def save_products(products):
+def save_products(products: list) -> None:
     with open("produtos.json", "w", encoding="utf-8") as products_file:
         json.dump(products, products_file, ensure_ascii=False, indent=4)
 
 
-def load_products():
+def load_products() -> list:
     try:
         with open("produtos.json", "r", encoding="utf-8") as products_file:
             print("Produtos carregados do arquivo produtos.json.")
@@ -179,7 +179,7 @@ def load_products():
         return []
 
 
-def show_average_product_price(products):
+def show_average_product_price(products: list) -> None:
     if len(products) == 0:
         print("Nenhum produto cadastrado.")
         return
@@ -194,7 +194,7 @@ def show_average_product_price(products):
     print(f"Preço médio dos produtos: R$ {average_price:.2f}")
 
 
-def list_products_above_price(products):
+def list_products_above_price(products: list) -> None:
     if len(products) == 0:
         print("Nenhum produto cadastrado.")
         return
@@ -219,7 +219,7 @@ def list_products_above_price(products):
         print("Nenhum produto encontrado nessa faixa de preço.")
 
 
-def filter_products_by_partial_name(products, partial_name):
+def filter_products_by_partial_name(products: list, partial_name: str) -> list:
     found_products = []
 
     for product in products:
@@ -229,7 +229,7 @@ def filter_products_by_partial_name(products, partial_name):
     return found_products
 
 
-def search_products_by_partial_name(products):
+def search_products_by_partial_name(products: list) -> None:
     if len(products) == 0:
         print("Nenhum produto cadastrado.")
         return
@@ -256,7 +256,7 @@ def search_products_by_partial_name(products):
         print(f"ID {product_id} - {name}: R$ {price:.2f}")
 
 
-def show_menu(products):
+def show_menu(products: list) -> None:
     while True:
         print()
         print("=== Sistema de Produtos ===")
