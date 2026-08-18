@@ -1,5 +1,6 @@
 import json
 import constants
+import unicodedata
 
 
 def read_price(message: str) -> float:
@@ -223,8 +224,12 @@ def list_products_above_price(products: list) -> None:
 def filter_products_by_partial_name(products: list, partial_name: str) -> list:
     found_products = []
 
+    partial_name = unicodedata.normalize('NFKD', partial_name).encode('ascii', 'ignore').decode('ascii').lower()
+
     for product in products:
-        if partial_name in product["name"].lower():
+        product_name = unicodedata.normalize('NFKD', product["name"]).encode('ascii', 'ignore').decode('ascii').lower()
+
+        if partial_name in product_name:
             found_products.append(product)
 
     return found_products
