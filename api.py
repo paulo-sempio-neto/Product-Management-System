@@ -7,15 +7,27 @@ from funcoes_produtos import (
     find_product_by_name,
     filter_products_by_partial_name
 )
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, validator
 
 # ============================================
 # MODELO DE DADOS (validação)
 # ============================================
 
 class Product(BaseModel):
-    name: str
-    price: float
+    name: str = Field(..., min_length=1, description="Nome do produto")
+    price: float = Field(..., gt=0, description="Preço do produto (deve ser maior que zero)")
+
+    @validator('name')
+    def name_not_empty(cls, v):
+        if not v.strip():
+            raise ValueError('Nome não pode ser vazio')
+        return v.strip()
+
+    @validator('price')
+    def price_positive(cls, v):
+        if v <= 0:
+            raise ValueError('Preço deve ser maior que zero')
+        return v
 
 class ProductResponse(BaseModel):
     id: int
