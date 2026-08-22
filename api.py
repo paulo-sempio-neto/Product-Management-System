@@ -1,13 +1,17 @@
 from fastapi import FastAPI, HTTPException
-from funcoes_produtos import (
+from database import (
     load_products,
     save_products,
     generate_next_id,
     find_product_by_id,
     find_product_by_name,
-    filter_products_by_partial_name
+    filter_products_by_partial_name,
+    create_table
 )
 from pydantic import BaseModel, Field, validator
+
+# Cria a tabela ao iniciar
+create_table()
 
 # ============================================
 # MODELO DE DADOS (validação)
@@ -65,7 +69,7 @@ def list_all_products():
 @app.get("/products/{product_id}", response_model=ProductResponse)
 def get_product(product_id: int):
     """Retorna um produto pelo ID"""
-    product = find_product_by_id(products, product_id)
+    product = find_product_by_id(product_id)
     if product is None:
         raise HTTPException(status_code=404, detail="Produto não encontrado")
     return product
@@ -75,12 +79,12 @@ def get_product(product_id: int):
 def create_product(product: Product):
     """Cria um novo produto"""
     # Verifica se já existe com o mesmo nome
-    existing = find_product_by_name(products, product.name)
+    existing = find_product_by_name(product.name)
     if existing:
         raise HTTPException(status_code=400, detail="Produto já cadastrado")
     
     # Gera ID e cria o produto
-    new_id = generate_next_id(products)
+    new_id = generate_next_id()
     new_product = {
         "id": new_id,
         "name": product.name,
@@ -96,7 +100,7 @@ def create_product(product: Product):
 @app.put("/products/{product_id}", response_model=ProductResponse)
 def update_product(product_id: int, product: Product):
     """Atualiza o preço de um produto"""
-    existing = find_product_by_id(products, product_id)
+    existing = find_product_by_id(product_id)
     if existing is None:
         raise HTTPException(status_code=404, detail="Produto não encontrado")
     
@@ -110,7 +114,7 @@ def update_product(product_id: int, product: Product):
 @app.delete("/products/{product_id}", status_code=204)
 def delete_product(product_id: int):
     """Remove um produto"""
-    existing = find_product_by_id(products, product_id)
+    existing = find_product_by_id(product_id)
     if existing is None:
         raise HTTPException(status_code=404, detail="Produto não encontrado")
     
@@ -123,7 +127,7 @@ def delete_product(product_id: int):
 @app.get("/products/search/")
 def search_products(name: str):
     """Busca produtos por parte do nome"""
-    result = filter_products_by_partial_name(products, name)
+    result = filter_products_by_partial_name(name)
     if not result:
         raise HTTPException(status_code=404, detail="Nenhum produto encontrado")
     return result

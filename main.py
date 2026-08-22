@@ -1,5 +1,4 @@
-from funcoes_produtos import load_products, show_menu
+from menu import show_menu
 
-products = load_products()
-
-show_menu(products)
+if __name__ == "__main__":
+    show_menu()

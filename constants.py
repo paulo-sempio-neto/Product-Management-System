@@ -33,7 +33,7 @@ SUCCESS_PRODUCT_DELETED = "Produto removido com sucesso."
 
 FILE_NAME = "produtos.json"
 
-MSG_EXIT_MENU = "Saindo do sistema."
+EXIT_MESSAGE = "Saindo do sistema."
 MSG_NO_PRODUCTS = "Nenhum produto cadastrado."
 MSG_LOAD_SUCCESS = "Produtos carregados do arquivo produtos.json."
 MSG_LOAD_ERROR = "Arquivo produtos.json não encontrado. Começando com lista vazia."
