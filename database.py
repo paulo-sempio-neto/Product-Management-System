@@ -1,5 +1,6 @@
 import sqlite3
 from typing import List, Dict, Optional
+import unicodedata
 
 DB_NAME = "produtos.db"
 
@@ -106,26 +107,26 @@ def find_product_by_name(name: str) -> Optional[Dict]:
 
 
 def filter_products_by_partial_name(partial_name: str) -> List[Dict]:
-    """Busca produtos por parte do nome"""
+    """Busca produtos por parte do nome (ignorando acentos)"""
     conn = get_connection()
     cursor = conn.cursor()
     
-    cursor.execute(
-        "SELECT id, name, price FROM products WHERE name LIKE ?",
-        (f"%{partial_name}%",)
-    )
-    rows = cursor.fetchall()
+    partial_name = unicodedata.normalize('NFKD', partial_name).encode('ascii', 'ignore').decode('ascii').lower()
     
-    conn.close()
+    cursor.execute("SELECT id, name, price FROM products")
+    rows = cursor.fetchall()
     
     products = []
     for row in rows:
-        products.append({
-            "id": row[0],
-            "name": row[1],
-            "price": row[2]
-        })
+        product_name = unicodedata.normalize('NFKD', row[1]).encode('ascii', 'ignore').decode('ascii').lower()
+        if partial_name in product_name:
+            products.append({
+                "id": row[0],
+                "name": row[1],
+                "price": row[2]
+            })
     
+    conn.close()
     return products
 
 
