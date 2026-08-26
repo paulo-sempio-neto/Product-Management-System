@@ -1,76 +1,65 @@
+```markdown
 # Sistema de Gerenciamento de Produtos
 
-Sistema de linha de comando para gerenciamento de produtos com persistência em JSON.
+Sistema de gerenciamento de produtos com interface no terminal e API REST.
 
-## Funcionalidades
+## 🚀 Funcionalidades
 
-- Cadastrar produtos
-- Buscar produto por ID
-- Atualizar preço
-- Remover produto
-- Listar todos os produtos
-- Calcular preço médio
-- Filtrar por preço mínimo
-- Buscar por parte do nome
-- Persistência automática em JSON
+- CRUD completo de produtos
+- API REST com FastAPI
+- Banco de dados SQLite
+- Testes automatizados
 
-## Tecnologias
+## 🛠️ Tecnologias
 
-- Python 3
-- JSON para persistência
-- Git para versionamento
+- Python, FastAPI, SQLite, Pydantic, Uvicorn, Pytest
 
-## Estrutura do Projeto
+## ⚙️ Como Executar
 
-```
-Sistema_Produtos/
-├── main.py                 # Interface com o usuário
-├── funcoes_produtos.py     # Regras de negócio
-├── produtos.json           # Banco de dados (JSON)
-├── .gitignore              # Arquivos ignorados pelo Git
-└── README.md               # Documentação
-```
-
-## Como Executar
-
+### Terminal
 ```bash
 python main.py
 ```
 
-## Menu Principal
-
+### API
+```bash
+python -m uvicorn api:app --reload
 ```
-=== SISTEMA DE PRODUTOS ===
-1. Cadastrar produto
-2. Buscar produto por ID
-3. Atualizar preço
-4. Remover produto
-5. Listar todos os produtos
-6. Mostrar preço médio
-7. Listar produtos acima ou igual a um preço
-8. Buscar produtos por parte do nome
-9. Sair
+Acesse: http://127.0.0.1:8000/docs
+
+### Testes
+```bash
+python -m pytest tests/test_produtos.py -v
 ```
 
-## Estrutura do Produto
+## 📋 Menu Principal
 
-```json
-{
-    "id": 1,
-    "name": "Arroz",
-    "price": 12.0
-}
+```
+1 - Cadastrar produto
+2 - Buscar produto por ID
+3 - Atualizar preço
+4 - Remover produto
+5 - Listar todos os produtos
+6 - Mostrar preço médio
+7 - Listar produtos acima de um preço
+8 - Buscar produtos por parte do nome
+9 - Sair
 ```
 
-## Decisões Técnicas
+## 📌 Decisões Técnicas
 
-- Código interno em inglês (identificadores, funções, variáveis)
-- Mensagens ao usuário em português
-- Separação entre lógica e interação
-- Persistência automática a cada alteração
-- Validações robustas (nome, preço, ID)
+- Código em inglês, mensagens em português
+- Separação de responsabilidades
+- SQLite em vez de JSON
+- Testes automatizados
 
-## Autor
+## 📚 Documentação
+
+- [STRUCTURE.md](./STRUCTURE.md) - Detalhes da arquitetura
+
+## 👨‍💻 Autor
 
 Paulo Malpice Sêmpio Neto - [paulosempioneto-collab](https://github.com/paulosempioneto-collab)
 ```
+
+---
