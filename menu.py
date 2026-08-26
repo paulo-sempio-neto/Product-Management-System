@@ -104,7 +104,7 @@ def list_products():
     """Lista todos os produtos"""
     products = load_products()
     if not products:
-        print(constants.ERROR_NO_PRODUCTS)
+        print(constants.MSG_NO_PRODUCTS)
         return
 
     print(constants.MSG_PRODUCT_LIST)
