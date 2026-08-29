@@ -8,7 +8,7 @@ from database import (
     filter_products_by_partial_name,
     create_table
 )
-from funcoes_produtos import (
+from product_service import (
     read_product_name,
     read_product_id,
     read_price,
