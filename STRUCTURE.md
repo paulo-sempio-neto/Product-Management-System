@@ -1,120 +1,226 @@
-```markdown
-# Estrutura do Projeto - Sistema_Produtos
+# Project Structure - Product Management System
 
-## Visão Geral
-Sistema de gerenciamento de produtos com:
-- Interface no terminal
-- API REST com FastAPI
-- Banco de dados SQLite
-- Testes automatizados com pytest
+## Overview
 
----
+This project is a product management system built with Python.
 
-## Arquivos e Responsabilidades
+It includes:
 
-| Arquivo | Responsabilidade |
-|---------|------------------|
-| `main.py` | Ponto de entrada do terminal. Executa o menu. |
-| `menu.py` | Menu interativo para o usuário. Chama as funções do `database.py`. |
-| `api.py` | API REST com FastAPI. Fornece endpoints para gerenciar produtos. |
-| `database.py` | Conexão e operações com SQLite (CRUD). |
-| `constants.py` | Constantes e mensagens do sistema (mensagens, prompts, etc.). |
-| `tests/test_produtos.py` | Testes automatizados com pytest. |
-| `produtos.db` | Banco de dados SQLite (gerado automaticamente). |
-| `.gitignore` | Arquivos ignorados pelo Git. |
-| `README.md` | Documentação do projeto. |
-| `STRUCTURE.md` | Estrutura do projeto (este arquivo). |
+- Terminal user interface
+- REST API using FastAPI
+- SQLite database integration
+- Automated tests with Pytest
+
+The project is organized into independent modules to separate responsibilities and improve maintainability.
 
 ---
 
-## Fluxo de Dados
+# Files and Responsibilities
 
-### Terminal (main.py)
+| File | Responsibility |
+|------|----------------|
+| `main.py` | Application entry point. Starts the terminal interface. |
+| `menu.py` | Handles the interactive terminal menu and user navigation. |
+| `funcoes_produtos.py` | Contains product-related functions and user interaction logic. |
+| `api.py` | FastAPI REST API implementation and endpoint management. |
+| `database.py` | Handles SQLite connection and database CRUD operations. |
+| `constants.py` | Stores system constants, messages, and prompts. |
+| `tests/test_produtos.py` | Automated tests using Pytest. |
+| `produtos.db` | SQLite database file generated during execution. |
+| `.gitignore` | Defines files ignored by Git. |
+| `README.md` | Main project documentation. |
+| `STRUCTURE.md` | Detailed project architecture documentation. |
+
+---
+
+# Data Flow
+
+## Terminal Application
+
 ```
 main.py
+
     ↓
+
 menu.py
+
     ↓
+
+funcoes_produtos.py
+
+    ↓
+
 database.py
+
     ↓
+
 produtos.db
 ```
 
-### API (FastAPI)
+---
+
+## REST API
+
 ```
 api.py
+
     ↓
+
 database.py
+
     ↓
+
 produtos.db
 ```
 
-### Testes
+---
+
+## Automated Tests
+
 ```
 tests/test_produtos.py
+
     ↓
+
 database.py
+
     ↓
-produtos.db (teste)
+
+test database
 ```
 
 ---
 
-## Conexões entre Arquivos
+# File Dependencies
 
-- `menu.py` importa de:
-  - `database.py` (operações de banco)
-  - `funcoes_produtos.py` (interação com usuário)
-  - `constants.py` (constantes)
+## `main.py`
 
-- `api.py` importa de:
-  - `database.py` (operações de banco)
-  - `pydantic` (validação de dados)
-  - `fastapi` (framework)
+Imports:
 
-- `tests/test_produtos.py` importa de:
-  - `database.py` (operações de banco)
+- `menu.py`
+
+Responsibility:
+
+- Starts the application flow.
 
 ---
 
-## Como Executar
+## `menu.py`
 
-### Terminal
+Imports:
+
+- `database.py`
+- `funcoes_produtos.py`
+- `constants.py`
+
+Responsibility:
+
+- Controls user interaction through the terminal.
+
+---
+
+## `api.py`
+
+Imports:
+
+- `database.py`
+- `fastapi`
+- `pydantic`
+
+Responsibility:
+
+- Provides REST API endpoints.
+- Validates API data.
+- Handles HTTP requests.
+
+---
+
+## `tests/test_produtos.py`
+
+Imports:
+
+- `database.py`
+
+Responsibility:
+
+- Validates database operations and product functionality.
+
+---
+
+# How to Run
+
+## Terminal Interface
+
 ```bash
 python main.py
 ```
 
-### API
+---
+
+## API
+
 ```bash
 python -m uvicorn api:app --reload
 ```
 
-### Testes
+API documentation:
+
+```
+http://127.0.0.1:8000/docs
+```
+
+---
+
+## Tests
+
 ```bash
 python -m pytest tests/test_produtos.py -v
 ```
 
 ---
 
-## Tecnologias Utilizadas
+# Technologies Used
 
-- **Python 3.14**
-- **FastAPI** - API REST
-- **SQLite3** - Banco de dados
-- **Pydantic** - Validação de dados
-- **Pytest** - Testes automatizados
-- **Uvicorn** - Servidor ASGI
-- **Git** - Versionamento
+- **Python 3.14** - Main programming language
+- **FastAPI** - REST API framework
+- **SQLite3** - Database system
+- **Pydantic** - Data validation
+- **Pytest** - Automated testing framework
+- **Uvicorn** - ASGI server
+- **Git** - Version control
+
+---
+
+# Technical Decisions
+
+## SQLite Instead of JSON Storage
+
+The project initially used JSON files for data storage.
+
+SQLite was introduced to provide:
+
+- Better data organization
+- Structured queries
+- More reliable persistence
+- A database-based architecture
 
 ---
 
-## Decisões Técnicas
+## Separation of Responsibilities
 
-- **Código interno em inglês** (identificadores, funções, variáveis)
-- **Mensagens ao usuário em português**
-- **Separação de responsabilidades** (interação, banco, API)
-- **Persistência em SQLite** (substituindo o JSON)
-- **Testes automatizados** para garantir funcionamento
-```
+The project separates different responsibilities:
+
+- Interface logic is handled by `menu.py`
+- Business logic is handled by product functions
+- Database operations are centralized in `database.py`
+- API logic is isolated in `api.py`
+
+This structure improves readability and makes future maintenance easier.
 
 ---
+
+## Modular Architecture
+
+Each module has a specific purpose, reducing code duplication and making the system easier to expand.
+
+Future improvements can be added without requiring major changes to the existing structure.
