@@ -195,7 +195,3 @@ def show_menu():
             break
         else:
             print(constants.ERROR_INVALID_OPTION)
-
-
-if __name__ == "__main__":
-    show_menu()
