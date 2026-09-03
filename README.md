@@ -9,6 +9,20 @@ A product management system built with **Python**, **FastAPI**, and **SQLite**.
 
 This project provides a complete solution for managing products through a terminal interface and a REST API. It was developed to practice backend development concepts, database integration, CRUD operations, software organization, and automated testing.
 
+
+
+## 🎬 Quick Demo
+
+<p align="center">
+  <img
+    src="./assets/product-management-demo.gif"
+    alt="Product Management System demonstration"
+    width="100%"
+  />
+</p>
+
+
+
 ---
 
 # 🚀 Features
