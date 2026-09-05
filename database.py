@@ -27,6 +27,68 @@ def create_table():
     conn.close()
 
 
+def create_product(name, price):
+    """Cria um produto no banco"""
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """
+        INSERT INTO products (name, price)
+        VALUES (?, ?)
+        """,
+        (name, price)
+    )
+
+    conn.commit()
+
+    product_id = cursor.lastrowid
+
+    conn.close()
+
+    return product_id
+
+
+def update_product(product_id, name, price):
+    """Atualiza um produto no banco"""
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """
+        UPDATE products
+        SET name = ?, price = ?
+        WHERE id = ?
+        """,
+        (name, price, product_id)
+    )
+
+    conn.commit()
+
+    conn.close()
+
+
+def delete_product(product_id):
+    """Remove um produto do banco"""
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """
+        DELETE FROM products
+        WHERE id = ?
+        """,
+        (product_id,)
+    )
+
+    conn.commit()
+
+    conn.close()
+
+
 def load_products() -> List[Dict]:
     """Carrega todos os produtos do banco"""
     conn = get_connection()
@@ -128,18 +190,3 @@ def filter_products_by_partial_name(partial_name: str) -> List[Dict]:
     
     conn.close()
     return products
-
-
-def generate_next_id() -> int:
-    """Gera o próximo ID"""
-    conn = get_connection()
-    cursor = conn.cursor()
-    
-    cursor.execute("SELECT MAX(id) FROM products")
-    row = cursor.fetchone()
-    
-    conn.close()
-    
-    if row[0] is None:
-        return 1
-    return row[0] + 1

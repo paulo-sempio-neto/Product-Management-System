@@ -1,8 +1,6 @@
 import constants
 from database import (
-    load_products,
-    save_products,
-    generate_next_id,
+    create_product as save_product_to_database,
     find_product_by_id,
     find_product_by_name,
     filter_products_by_partial_name,
@@ -28,17 +26,8 @@ def create_product():
         return
 
     price = read_price(constants.PROMPT_PRODUCT_PRICE)
-    new_id = generate_next_id()
-
-    new_product = {
-        "id": new_id,
-        "name": name,
-        "price": price
-    }
-
-    products = load_products()
-    products.append(new_product)
-    save_products(products)
+    
+    save_product_to_database(name, price)
 
     print(constants.SUCCESS_PRODUCT_CREATED)
 
