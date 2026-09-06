@@ -10,9 +10,12 @@ from database import (
     create_table
 )
 from pydantic import BaseModel, Field, validator
+import os 
 
-# Cria a tabela ao iniciar
-create_table()
+
+DB_NAME = os.getenv("DB_NAME", "produtos.db")
+
+create_table(DB_NAME)
 
 # ============================================
 # MODELO DE DADOS (validação)
@@ -62,13 +65,13 @@ def root():
 @app.get("/products", response_model=list[ProductResponse])
 def list_all_products():
     """Retorna todos os produtos"""
-    return load_products()
+    return load_products(DB_NAME)
 
 
 @app.get("/products/{product_id}", response_model=ProductResponse)
 def get_product(product_id: int):
     """Retorna um produto pelo ID"""
-    product = find_product_by_id(product_id)
+    product = find_product_by_id(product_id, DB_NAME)
     if product is None:
         raise HTTPException(status_code=404, detail="Produto não encontrado")
     return product
@@ -78,11 +81,11 @@ def get_product(product_id: int):
 def create_product(product: Product):
     """Cria um novo produto"""
     # Verifica se já existe com o mesmo nome
-    existing = find_product_by_name(product.name)
+    existing = find_product_by_name(product.name, DB_NAME)
     if existing:
         raise HTTPException(status_code=400, detail="Produto já cadastrado")
     
-    product_id = save_product_to_database(product.name, product.price)
+    product_id = save_product_to_database(product.name, product.price, DB_NAME)
 
     return {
         "id": product_id,
@@ -94,7 +97,7 @@ def create_product(product: Product):
 @app.put("/products/{product_id}", response_model=ProductResponse)
 def update_product(product_id: int, product: Product):
 
-    existing = find_product_by_id(product_id)
+    existing = find_product_by_id(product_id, DB_NAME)
 
     if existing is None:
         raise HTTPException(status_code=404, detail="Produto não encontrado")
@@ -102,7 +105,8 @@ def update_product(product_id: int, product: Product):
     update_product_database(
         product_id,
         product.name,
-        product.price
+        product.price,
+        DB_NAME
     )
 
     return {
@@ -115,19 +119,19 @@ def update_product(product_id: int, product: Product):
 @app.delete("/products/{product_id}", status_code=204)
 def delete_product(product_id: int):
 
-    existing = find_product_by_id(product_id)
+    existing = find_product_by_id(product_id, DB_NAME)
 
     if existing is None:
         raise HTTPException(status_code=404, detail="Produto não encontrado")
 
-    delete_product_database(product_id)
+    delete_product_database(product_id, DB_NAME)
 
     return
 
 @app.get("/products/search/")
 def search_products(name: str):
     """Busca produtos por parte do nome"""
-    result = filter_products_by_partial_name(name)
+    result = filter_products_by_partial_name(name, DB_NAME)
     if not result:
         raise HTTPException(status_code=404, detail="Nenhum produto encontrado")
     return result

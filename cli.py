@@ -1,10 +1,13 @@
 import constants
-from database import (
+from database import ( 
     create_product as save_product_to_database,
-    find_product_by_id,
-    find_product_by_name,
+    update_product as update_product_database,
+    delete_product as delete_product_database,
+    find_product_by_id, 
+    find_product_by_name, 
     filter_products_by_partial_name,
-    create_table
+    load_products,
+    create_table 
 )
 from product_service import (
     read_product_name,
@@ -61,12 +64,7 @@ def update_product():
 
     new_price = read_price(constants.PROMPT_NEW_PRICE)
     
-    products = load_products()
-    for p in products:
-        if p["id"] == product_id:
-            p["price"] = new_price
-            break
-    save_products(products)
+    update_product_database(product_id, product["name"], new_price)
 
     print(constants.SUCCESS_PRODUCT_UPDATED)
 
@@ -82,9 +80,7 @@ def delete_product():
         print(constants.ERROR_PRODUCT_NOT_FOUND)
         return
 
-    products = load_products()
-    products = [p for p in products if p["id"] != product_id]
-    save_products(products)
+    delete_product_database(product_id)
 
     print(constants.SUCCESS_PRODUCT_DELETED)
 

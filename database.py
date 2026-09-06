@@ -51,6 +51,17 @@ def create_product(name, price,  db_name=None):
     return product_id
 
 
+def clear_products(db_name=None):
+    conn = get_connection(db_name)
+    cursor = conn.cursor()
+
+    cursor.execute("DELETE FROM products")
+    cursor.execute("DELETE FROM sqlite_sequence WHERE name='products'")
+
+    conn.commit()
+    conn.close()
+
+
 def update_product(product_id, name, price,  db_name=None):
     """Atualiza um produto no banco"""
 
