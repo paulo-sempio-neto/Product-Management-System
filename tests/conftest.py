@@ -2,36 +2,24 @@ import pytest
 
 from database import (
     create_table,
-    save_products
+    create_product
 )
 
 
 @pytest.fixture
-def setup_products():
+def setup_products(tmp_path):
     """
-    Creates test products in the database.
+    Creates test products in a temporary database.
     """
 
-    create_table()
+    db_file = tmp_path / "test.db"
 
-    products = [
-        {
-            "id": 1,
-            "name": "Rice",
-            "price": 12.0
-        },
-        {
-            "id": 2,
-            "name": "Beans",
-            "price": 8.0
-        },
-        {
-            "id": 3,
-            "name": "Pasta",
-            "price": 5.0
-        }
-    ]
+    db_name = str(db_file)
 
-    save_products(products)
+    create_table(db_name)
 
-    return products
+    create_product("Rice", 12.0, db_name)
+    create_product("Beans", 8.0, db_name)
+    create_product("Pasta", 5.0, db_name)
+
+    return db_name

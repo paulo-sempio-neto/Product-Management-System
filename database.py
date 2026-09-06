@@ -5,14 +5,15 @@ import unicodedata
 DB_NAME = "produtos.db"
 
 
-def get_connection():
+def get_connection(db_name=None):
     """Retorna uma conexão com o banco de dados"""
-    return sqlite3.connect(DB_NAME)
+    database = db_name or DB_NAME
+    return sqlite3.connect(database)
 
 
-def create_table():
+def create_table(db_name=None):
     """Cria a tabela de produtos se não existir"""
-    conn = get_connection()
+    conn = get_connection(db_name)
     cursor = conn.cursor()
     
     cursor.execute("""
@@ -27,10 +28,10 @@ def create_table():
     conn.close()
 
 
-def create_product(name, price):
+def create_product(name, price,  db_name=None):
     """Cria um produto no banco"""
 
-    conn = get_connection()
+    conn = get_connection(db_name)
     cursor = conn.cursor()
 
     cursor.execute(
@@ -50,10 +51,10 @@ def create_product(name, price):
     return product_id
 
 
-def update_product(product_id, name, price):
+def update_product(product_id, name, price,  db_name=None):
     """Atualiza um produto no banco"""
 
-    conn = get_connection()
+    conn = get_connection(db_name)
     cursor = conn.cursor()
 
     cursor.execute(
@@ -70,10 +71,10 @@ def update_product(product_id, name, price):
     conn.close()
 
 
-def delete_product(product_id):
+def delete_product(product_id,  db_name=None):
     """Remove um produto do banco"""
 
-    conn = get_connection()
+    conn = get_connection(db_name)
     cursor = conn.cursor()
 
     cursor.execute(
@@ -89,9 +90,9 @@ def delete_product(product_id):
     conn.close()
 
 
-def load_products() -> List[Dict]:
+def load_products(db_name=None) -> List[Dict]:
     """Carrega todos os produtos do banco"""
-    conn = get_connection()
+    conn = get_connection(db_name)
     cursor = conn.cursor()
     
     cursor.execute("SELECT id, name, price FROM products")
@@ -109,9 +110,9 @@ def load_products() -> List[Dict]:
     return products
 
 
-def save_products(products: List[Dict]) -> None:
+def save_products(products: List[Dict],  db_name=None) -> None:
     """Salva a lista de produtos no banco (substitui tudo)"""
-    conn = get_connection()
+    conn = get_connection(db_name)
     cursor = conn.cursor()
     
     # Limpa a tabela
@@ -128,9 +129,9 @@ def save_products(products: List[Dict]) -> None:
     conn.close()
 
 
-def find_product_by_id(product_id: int) -> Optional[Dict]:
+def find_product_by_id(product_id: int, db_name=None) -> Optional[Dict]:
     """Busca um produto pelo ID"""
-    conn = get_connection()
+    conn = get_connection(db_name)
     cursor = conn.cursor()
     
     cursor.execute("SELECT id, name, price FROM products WHERE id = ?", (product_id,))
@@ -148,9 +149,9 @@ def find_product_by_id(product_id: int) -> Optional[Dict]:
     }
 
 
-def find_product_by_name(name: str) -> Optional[Dict]:
+def find_product_by_name(name: str, db_name=None) -> Optional[Dict]:
     """Busca um produto pelo nome (exato)"""
-    conn = get_connection()
+    conn = get_connection(db_name)
     cursor = conn.cursor()
     
     cursor.execute("SELECT id, name, price FROM products WHERE name = ?", (name,))
@@ -168,9 +169,9 @@ def find_product_by_name(name: str) -> Optional[Dict]:
     }
 
 
-def filter_products_by_partial_name(partial_name: str) -> List[Dict]:
+def filter_products_by_partial_name(partial_name: str, db_name=None) -> List[Dict]:
     """Busca produtos por parte do nome (ignorando acentos)"""
-    conn = get_connection()
+    conn = get_connection(db_name)
     cursor = conn.cursor()
     
     partial_name = unicodedata.normalize('NFKD', partial_name).encode('ascii', 'ignore').decode('ascii').lower()
