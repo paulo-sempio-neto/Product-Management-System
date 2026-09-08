@@ -68,6 +68,15 @@ def list_all_products():
     return load_products(DB_NAME)
 
 
+@app.get("/products/search/")
+def search_products(name: str):
+    """Busca produtos por parte do nome"""
+    result = filter_products_by_partial_name(name, DB_NAME)
+    if not result:
+        raise HTTPException(status_code=404, detail="Nenhum produto encontrado")
+    return result
+
+
 @app.get("/products/{product_id}", response_model=ProductResponse)
 def get_product(product_id: int):
     """Retorna um produto pelo ID"""
@@ -127,11 +136,3 @@ def delete_product(product_id: int):
     delete_product_database(product_id, DB_NAME)
 
     return
-
-@app.get("/products/search/")
-def search_products(name: str):
-    """Busca produtos por parte do nome"""
-    result = filter_products_by_partial_name(name, DB_NAME)
-    if not result:
-        raise HTTPException(status_code=404, detail="Nenhum produto encontrado")
-    return result
