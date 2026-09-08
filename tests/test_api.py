@@ -15,9 +15,9 @@ client = TestClient(app)
 
 def setup():
 
-    clear_products(TEST_DB)
-
     create_table(TEST_DB)
+    clear_products(TEST_DB)
+    
 
     create_product("Arroz", 12.0, TEST_DB)
     create_product("Feijão", 8.0, TEST_DB)
@@ -28,7 +28,7 @@ def setup():
 
 def teardown():
     """Limpa o banco depois de cada teste"""
-    clear_products()
+    clear_products(TEST_DB)
 
 
 # ============================================
