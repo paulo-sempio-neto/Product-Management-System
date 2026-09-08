@@ -62,14 +62,14 @@ The project documentation and technical descriptions are written in **English**.
 The project follows a modular architecture, separating responsibilities between different files.
 
 ```
-Sistema_Produtos/
+Product-Management-System/
 │
 ├── tests/                  # Automated tests
 │
 ├── api.py                  # FastAPI application
 ├── database.py             # Database connection and operations
-├── funcoes_produtos.py     # Product business logic
-├── menu.py                 # Terminal interface
+├── product_service.py      # Product business logic
+├── cli.py                  # Terminal interface
 ├── main.py                 # Application entry point
 ├── constants.py            # Application constants
 │
@@ -88,13 +88,13 @@ For a detailed explanation of the project architecture:
 ## Clone the repository
 
 ```bash
-git clone https://github.com/paulo-sempio-neto/Sistema_Produtos.git
+git clone https://github.com/paulo-sempio-neto/Product-Management-System.git
 ```
 
 ## Access the project folder
 
 ```bash
-cd Sistema_Produtos
+cd Product-Management-System
 ```
 
 ## Install dependencies
