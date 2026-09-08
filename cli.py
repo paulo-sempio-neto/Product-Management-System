@@ -101,7 +101,7 @@ def show_average_product_price():
     """Mostra o preço médio dos produtos"""
     products = load_products()
     if not products:
-        print(constants.ERROR_NO_PRODUCTS)
+        print(constants.MSG_NO_PRODUCTS)
         return
 
     total = sum(p["price"] for p in products)
@@ -113,7 +113,7 @@ def list_products_above_price():
     """Lista produtos acima de um preço mínimo"""
     products = load_products()
     if not products:
-        print(constants.ERROR_NO_PRODUCTS)
+        print(constants.MSG_NO_PRODUCTS)
         return
 
     minimum_price = read_price(constants.PROMPT_MINIMUM_PRICE)
