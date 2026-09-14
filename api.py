@@ -9,7 +9,7 @@ from database import (
     filter_products_by_partial_name,
     create_table
 )
-from pydantic import BaseModel, Field, validator
+from schemas.product import ProductCreate, ProductUpdate, ProductResponse
 import os 
 
 
@@ -17,30 +17,6 @@ DB_NAME = os.getenv("DB_NAME", "produtos.db")
 
 create_table(DB_NAME)
 
-# ============================================
-# MODELO DE DADOS (validação)
-# ============================================
-
-class Product(BaseModel):
-    name: str = Field(..., min_length=1, description="Nome do produto")
-    price: float = Field(..., gt=0, description="Preço do produto (deve ser maior que zero)")
-
-    @validator('name')
-    def name_not_empty(cls, v):
-        if not v.strip():
-            raise ValueError('Nome não pode ser vazio')
-        return v.strip()
-
-    @validator('price')
-    def price_positive(cls, v):
-        if v <= 0:
-            raise ValueError('Preço deve ser maior que zero')
-        return v
-
-class ProductResponse(BaseModel):
-    id: int
-    name: str
-    price: float
 
 # ============================================
 # INICIALIZAÇÃO DA API
@@ -68,7 +44,10 @@ def list_all_products():
     return load_products(DB_NAME)
 
 
-@app.get("/products/search/")
+@app.get(
+    "/products/search/",
+    response_model=list[ProductResponse],
+)
 def search_products(name: str):
     """Busca produtos por parte do nome"""
     result = filter_products_by_partial_name(name, DB_NAME)
@@ -87,7 +66,7 @@ def get_product(product_id: int):
 
 
 @app.post("/products", response_model=ProductResponse, status_code=201)
-def create_product(product: Product):
+def create_product(product: ProductCreate):
     """Cria um novo produto"""
     # Verifica se já existe com o mesmo nome
     existing = find_product_by_name(product.name, DB_NAME)
@@ -104,12 +83,20 @@ def create_product(product: Product):
 
 
 @app.put("/products/{product_id}", response_model=ProductResponse)
-def update_product(product_id: int, product: Product):
+def update_product(product_id: int, product: ProductUpdate):
 
     existing = find_product_by_id(product_id, DB_NAME)
 
     if existing is None:
         raise HTTPException(status_code=404, detail="Produto não encontrado")
+
+    product_with_same_name = find_product_by_name(product.name, DB_NAME)
+
+    if product_with_same_name and product_with_same_name["id"] != product_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Já existe outro produto com esse nome"
+        )
 
     update_product_database(
         product_id,

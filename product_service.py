@@ -9,7 +9,7 @@ def read_price(message: str) -> float:
     while True:
         try:
             price = float(input(message))
-            if price < 0:
+            if price <= 0:
                 print(constants.ERROR_NEGATIVE_PRICE)
                 continue
             return price
