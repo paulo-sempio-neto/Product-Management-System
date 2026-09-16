@@ -4,6 +4,7 @@
 
 MENU_TITLE = "=== Sistema de Produtos ==="
 
+
 MENU_OPTIONS = {
     "1": "Cadastrar produto",
     "2": "Buscar produto por ID",
@@ -16,6 +17,7 @@ MENU_OPTIONS = {
     "9": "Sair"
 }
 
+
 ERROR_INVALID_ID = "O ID deve ser maior que zero."
 ERROR_INVALID_ID_VALUE = "Digite um ID válido."
 ERROR_EMPTY_NAME = "O nome do produto não pode ficar vazio."
@@ -25,6 +27,7 @@ ERROR_INVALID_PRICE = "Digite um preço válido."
 ERROR_INVALID_NAME = "Nome inválido."
 ERROR_PRODUCT_NOT_FOUND = "Produto não encontrado."
 ERROR_PRODUCT_DUPLICATE = "Produto já cadastrado."
+
 
 SUCCESS_PRODUCT_CREATED = "Produto cadastrado com sucesso."
 SUCCESS_PRODUCT_UPDATED = "Produto atualizado com sucesso."
@@ -37,10 +40,8 @@ MSG_PRODUCT_LIST = "Lista de produtos:"
 MSG_NO_PRODUCTS_ABOVE = "Nenhum produto encontrado nessa faixa de preço."
 MSG_NO_PRODUCTS_FOUND = "Nenhum produto encontrado com esse nome."
 
-PROMPT_MINIMUM_PRICE = "Preço mínimo: "
+
 PROMPT_PRODUCT_ID = "ID do produto: "
-PROMPT_PRODUCT_PRICE = "Preço do produto: "
-PROMPT_PRODUCT_NAME = "Nome do produto: "
 PROMPT_MENU_OPTION = "Escolha uma opção: "
 PROMPT_PRODUCT_NAME = "Digite o nome do produto: "
 PROMPT_PRODUCT_PRICE = "Digite o preço do produto: "
