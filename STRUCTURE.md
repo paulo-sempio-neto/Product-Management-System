@@ -2,225 +2,170 @@
 
 ## Overview
 
-This project is a product management system built with Python.
+The Product Management System is a Python project with two user-facing
+interfaces:
 
-It includes:
+- An interactive terminal interface
+- A REST API built with FastAPI
 
-- Terminal user interface
-- REST API using FastAPI
-- SQLite database integration
-- Automated tests with Pytest
+Both interfaces use the same SQLite data-access module, but they currently
+implement their interface-specific workflows separately. There is not yet a
+shared business-service layer between the CLI and API.
 
-The project is organized into independent modules to separate responsibilities and improve maintainability.
+## Repository Layout
 
----
-
-# Files and Responsibilities
-
-| File | Responsibility |
-|------|----------------|
-| `main.py` | Application entry point. Starts the terminal interface. |
-| `menu.py` | Handles the interactive terminal menu and user navigation. |
-| `funcoes_produtos.py` | Contains product-related functions and user interaction logic. |
-| `api.py` | FastAPI REST API implementation and endpoint management. |
-| `database.py` | Handles SQLite connection and database CRUD operations. |
-| `constants.py` | Stores system constants, messages, and prompts. |
-| `tests/test_produtos.py` | Automated tests using Pytest. |
-| `produtos.db` | SQLite database file generated during execution. |
-| `.gitignore` | Defines files ignored by Git. |
-| `README.md` | Main project documentation. |
-| `STRUCTURE.md` | Detailed project architecture documentation. |
-
----
-
-# Data Flow
-
-## Terminal Application
-
+```text
+Product-Management-System/
+├── assets/
+│   └── product-management-demo.gif
+├── schemas/
+│   ├── __init__.py
+│   └── product.py
+├── tests/
+│   ├── conftest.py
+│   ├── test_api.py
+│   ├── test_product_update.py
+│   └── test_products.py
+├── .gitignore
+├── api.py
+├── cli.py
+├── constants.py
+├── database.py
+├── main.py
+├── product_service.py
+├── README.md
+├── requirements.txt
+└── STRUCTURE.md
 ```
+
+SQLite database files may be created locally during application or test
+execution. They are runtime data and are ignored by Git, so they are not part of
+the tracked repository layout.
+
+## Files and Responsibilities
+
+| Path | Current responsibility |
+|---|---|
+| `main.py` | CLI entry point. Calls `cli.show_menu()` when executed directly. |
+| `api.py` | Creates the FastAPI application, initializes its configured SQLite database, and defines HTTP routes for product CRUD and partial-name search. |
+| `cli.py` | Implements the interactive terminal menu and its product workflows, including CRUD, listing, search, average price, and minimum-price filtering. |
+| `database.py` | Creates SQLite connections and the `products` table, and implements product persistence, lookup, and filtering functions. |
+| `product_service.py` | Contains CLI input parsing and validation helpers for prices, names, IDs, and menu options. It is not currently a shared API/CLI service layer. |
+| `constants.py` | Stores CLI menu labels, prompts, validation messages, success messages, and error messages in Portuguese. |
+| `schemas/product.py` | Defines the Pydantic creation, update, and response models used by the API. |
+| `schemas/__init__.py` | Marks `schemas` as a Python package. |
+| `tests/conftest.py` | Configures test imports and supplies a temporary SQLite database fixture for database-level tests. |
+| `tests/test_api.py` | Tests the main HTTP routes, validation responses, duplicate handling, search, and not-found responses. |
+| `tests/test_product_update.py` | Tests API product-name conflict behavior during updates using a temporary database. |
+| `tests/test_products.py` | Tests database lookup by ID/name and partial-name filtering. |
+| `requirements.txt` | Lists the pinned direct Python dependencies used by the current verified environment. |
+| `.gitignore` | Excludes local environments, caches, environment files, and SQLite database files from version control. |
+
+## Current Data Flow
+
+### Terminal Application
+
+```text
 main.py
-
-    ↓
-
-menu.py
-
-    ↓
-
-funcoes_produtos.py
-
-    ↓
-
-database.py
-
-    ↓
-
-produtos.db
+  └── cli.py
+        ├── product_service.py  (terminal input parsing and validation)
+        ├── constants.py        (terminal text)
+        └── database.py
+              └── local SQLite database
 ```
 
----
+The CLI initializes the database table when `show_menu()` starts. Its workflow
+functions call `database.py` directly.
 
-## REST API
+### REST API
 
-```
+```text
 api.py
-
-    ↓
-
-database.py
-
-    ↓
-
-produtos.db
+  ├── schemas/product.py  (request and response validation)
+  └── database.py
+        └── configured SQLite database
 ```
 
----
+The API initializes its database when `api.py` is imported. It reads the
+`DB_NAME` environment variable when present and otherwise uses `produtos.db`.
+API route functions call `database.py` directly.
 
-## Automated Tests
+### Automated Tests
 
-```
-tests/test_produtos.py
-
-    ↓
-
-database.py
-
-    ↓
-
-test database
+```text
+tests/
+  ├── FastAPI TestClient ──> api.py
+  └── database tests ──────> database.py
+                               └── test SQLite databases
 ```
 
----
+The database lookup tests and product-update conflict test use pytest temporary
+directories. The main API test module currently uses the separate local
+`test_api.db` file and changes `api.DB_NAME` for its test operations.
 
-# File Dependencies
+## Interface Boundaries
 
-## `main.py`
+The CLI and API share the SQLite functions in `database.py`, but their
+validation and workflow rules are not centralized:
 
-Imports:
+- The CLI uses `product_service.py` for terminal input validation.
+- The API uses the Pydantic models in `schemas/product.py`.
+- The CLI and API each handle product existence and duplicate checks in their
+  own workflow functions.
 
-- `menu.py`
+This describes the current implementation. Introducing a shared domain or
+business-service layer is a possible future change, not part of the present
+architecture.
 
-Responsibility:
+## Database
 
-- Starts the application flow.
+`database.py` uses Python's built-in `sqlite3` module. It creates one table:
 
----
-
-## `menu.py`
-
-Imports:
-
-- `database.py`
-- `funcoes_produtos.py`
-- `constants.py`
-
-Responsibility:
-
-- Controls user interaction through the terminal.
-
----
-
-## `api.py`
-
-Imports:
-
-- `database.py`
-- `fastapi`
-- `pydantic`
-
-Responsibility:
-
-- Provides REST API endpoints.
-- Validates API data.
-- Handles HTTP requests.
-
----
-
-## `tests/test_produtos.py`
-
-Imports:
-
-- `database.py`
-
-Responsibility:
-
-- Validates database operations and product functionality.
-
----
-
-# How to Run
-
-## Terminal Interface
-
-```bash
-python main.py
+```sql
+CREATE TABLE IF NOT EXISTS products (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    price REAL NOT NULL
+);
 ```
 
----
+The default application database is `produtos.db`. Local `.db`, `.sqlite`,
+and `.sqlite3` files are ignored and should not be committed.
 
-## API
+## Running the Project
 
-```bash
-python -m uvicorn api:app --reload
+The canonical local virtual environment directory is `.venv`.
+
+### CLI
+
+```powershell
+.\.venv\Scripts\python.exe main.py
 ```
 
-API documentation:
+### API
 
+```powershell
+.\.venv\Scripts\python.exe -m uvicorn api:app --reload
 ```
+
+Interactive API documentation:
+
+```text
 http://127.0.0.1:8000/docs
 ```
 
----
+### Tests
 
-## Tests
-
-```bash
-python -m pytest tests/test_produtos.py -v
+```powershell
+.\.venv\Scripts\python.exe -B -m pytest -q -p no:cacheprovider
 ```
 
----
+## Current Technology Baseline
 
-# Technologies Used
-
-- **Python 3.14** - Main programming language
-- **FastAPI** - REST API framework
-- **SQLite3** - Database system
-- **Pydantic** - Data validation
-- **Pytest** - Automated testing framework
-- **Uvicorn** - ASGI server
-- **Git** - Version control
-
----
-
-# Technical Decisions
-
-## SQLite Instead of JSON Storage
-
-The project initially used JSON files for data storage.
-
-SQLite was introduced to provide:
-
-- Better data organization
-- Structured queries
-- More reliable persistence
-- A database-based architecture
-
----
-
-## Separation of Responsibilities
-
-The project separates different responsibilities:
-
-- Interface logic is handled by `menu.py`
-- Business logic is handled by product functions
-- Database operations are centralized in `database.py`
-- API logic is isolated in `api.py`
-
-This structure improves readability and makes future maintenance easier.
-
----
-
-## Modular Architecture
-
-Each module has a specific purpose, reducing code duplication and making the system easier to expand.
-
-Future improvements can be added without requiring major changes to the existing structure.
+- Python 3.14.3
+- FastAPI 0.141.1
+- Uvicorn 0.52.4
+- Pydantic 2.13.5
+- Pytest 9.1.1
+- HTTPX 0.28.1
+- SQLite through Python's standard library
