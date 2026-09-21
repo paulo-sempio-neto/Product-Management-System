@@ -8,9 +8,8 @@ interfaces:
 - An interactive terminal interface
 - A REST API built with FastAPI
 
-Both interfaces use the same SQLite data-access module, but they currently
-implement their interface-specific workflows separately. There is not yet a
-shared business-service layer between the CLI and API.
+Both interfaces use the same product service for business rules. The service
+coordinates persistence through the SQLite data-access module.
 
 ## Repository Layout
 
@@ -20,21 +19,35 @@ Product-Management-System/
 │   └── product-management-demo.gif
 ├── schemas/
 │   ├── __init__.py
+│   ├── error.py
 │   └── product.py
 ├── tests/
 │   ├── conftest.py
 │   ├── test_api.py
+│   ├── test_api_readiness.py
+│   ├── test_cli.py
+│   ├── test_cli_input.py
+│   ├── test_config.py
+│   ├── test_database_reliability.py
+│   ├── test_product_service.py
 │   ├── test_product_update.py
 │   └── test_products.py
 ├── .gitignore
+├── .env.example
+├── .github/workflows/ci.yml
 ├── api.py
+├── api_errors.py
 ├── cli.py
+├── cli_input.py
 ├── constants.py
+├── config.py
 ├── database.py
 ├── main.py
 ├── product_service.py
+├── pyproject.toml
 ├── README.md
 ├── requirements.txt
+├── requirements-dev.txt
 └── STRUCTURE.md
 ```
 
@@ -47,17 +60,20 @@ the tracked repository layout.
 | Path | Current responsibility |
 |---|---|
 | `main.py` | CLI entry point. Calls `cli.show_menu()` when executed directly. |
-| `api.py` | Creates the FastAPI application, initializes its configured SQLite database, and defines HTTP routes for product CRUD and partial-name search. |
-| `cli.py` | Implements the interactive terminal menu and its product workflows, including CRUD, listing, search, average price, and minimum-price filtering. |
-| `database.py` | Creates SQLite connections and the `products` table, and implements product persistence, lookup, and filtering functions. |
-| `product_service.py` | Contains CLI input parsing and validation helpers for prices, names, IDs, and menu options. It is not currently a shared API/CLI service layer. |
+| `api.py` | Creates the FastAPI application, maps product-service outcomes to HTTP responses, and initializes the configured database during application lifespan. |
+| `cli.py` | Implements the interactive terminal menu and formats product-service results for terminal users. |
+| `cli_input.py` | Parses and validates terminal input for prices, names, IDs, and menu options. |
+| `database.py` | Manages SQLite connections and implements table creation, queries, and persistence. |
+| `product_service.py` | Implements shared product normalization, validation, duplicate checks, missing-product handling, CRUD coordination, search, and price reports. |
 | `constants.py` | Stores CLI menu labels, prompts, validation messages, success messages, and error messages in Portuguese. |
 | `schemas/product.py` | Defines the Pydantic creation, update, and response models used by the API. |
 | `schemas/__init__.py` | Marks `schemas` as a Python package. |
-| `tests/conftest.py` | Configures test imports and supplies a temporary SQLite database fixture for database-level tests. |
-| `tests/test_api.py` | Tests the main HTTP routes, validation responses, duplicate handling, search, and not-found responses. |
+| `tests/conftest.py` | Configures test imports and supplies isolated temporary SQLite databases and lifespan-aware API clients. |
+| `tests/test_api.py` | Tests application lifespan and the main HTTP routes, validation responses, duplicate handling, search, and not-found responses. |
+| `tests/test_cli.py` | Tests that CLI workflows preserve terminal behavior while using the service layer. |
+| `tests/test_product_service.py` | Tests shared product rules and translation of database failures. |
 | `tests/test_product_update.py` | Tests API product-name conflict behavior during updates using a temporary database. |
-| `tests/test_products.py` | Tests database lookup by ID/name and partial-name filtering. |
+| `tests/test_products.py` | Tests database lookup by ID/name and service-level partial-name filtering. |
 | `requirements.txt` | Lists the pinned direct Python dependencies used by the current verified environment. |
 | `.gitignore` | Excludes local environments, caches, environment files, and SQLite database files from version control. |
 
@@ -68,54 +84,57 @@ the tracked repository layout.
 ```text
 main.py
   └── cli.py
-        ├── product_service.py  (terminal input parsing and validation)
+        ├── cli_input.py        (terminal input parsing and validation)
         ├── constants.py        (terminal text)
-        └── database.py
-              └── local SQLite database
+        └── product_service.py  (business rules)
+              └── database.py
+                    └── local SQLite database
 ```
 
-The CLI initializes the database table when `show_menu()` starts. Its workflow
-functions call `database.py` directly.
+The CLI initializes products through the service when `show_menu()` starts.
+Workflow functions call the service and do not execute database operations.
 
 ### REST API
 
 ```text
 api.py
   ├── schemas/product.py  (request and response validation)
-  └── database.py
-        └── configured SQLite database
+  └── product_service.py  (business rules)
+        └── database.py
+              └── configured SQLite database
 ```
 
-The API initializes its database when `api.py` is imported. It reads the
-`DB_NAME` environment variable when present and otherwise uses `produtos.db`.
-API route functions call `database.py` directly.
+The API reads `DB_NAME` from the environment or defaults to `produtos.db`.
+Importing `api.py` does not access SQLite. Table initialization occurs once
+when the FastAPI lifespan starts, and routes call the product service.
 
 ### Automated Tests
 
 ```text
 tests/
   ├── FastAPI TestClient ──> api.py
+  ├── service tests ───────> product_service.py
+  ├── CLI tests ───────────> cli.py
   └── database tests ──────> database.py
-                               └── test SQLite databases
+                               └── temporary SQLite databases
 ```
 
-The database lookup tests and product-update conflict test use pytest temporary
-directories. The main API test module currently uses the separate local
-`test_api.db` file and changes `api.DB_NAME` for its test operations.
+Every persistence test uses a fixture-controlled temporary SQLite database.
+API clients enter FastAPI lifespan after configuring their unique database, so
+tests do not share product data or write repository database files.
 
 ## Interface Boundaries
 
-The CLI and API share the SQLite functions in `database.py`, but their
-validation and workflow rules are not centralized:
+The CLI and API share `product_service.py` for product rules:
 
-- The CLI uses `product_service.py` for terminal input validation.
-- The API uses the Pydantic models in `schemas/product.py`.
-- The CLI and API each handle product existence and duplicate checks in their
-  own workflow functions.
+- Names are trimmed while preserving their casing.
+- Empty names and non-positive or non-finite prices are rejected.
+- Duplicate names and missing products use explicit service errors.
+- The API maps service errors to HTTP responses.
+- The CLI maps service results and errors to Portuguese terminal messages.
 
-This describes the current implementation. Introducing a shared domain or
-business-service layer is a possible future change, not part of the present
-architecture.
+Pydantic still validates API request shapes at the HTTP boundary, while
+`cli_input.py` validates interactive input at the terminal boundary.
 
 ## Database
 
@@ -169,3 +188,39 @@ http://127.0.0.1:8000/docs
 - Pytest 9.1.1
 - HTTPX 0.28.1
 - SQLite through Python's standard library
+
+## Engineering Quality
+
+| Path | Responsibility |
+|---|---|
+| `pyproject.toml` | Configures Ruff, strict mypy checking for application modules, pytest discovery, and coverage reporting. |
+| `requirements-dev.txt` | Pins Ruff 0.16.8, mypy 2.3.1, and pytest-cov 7.1.0 while including `requirements.txt`. |
+| `.github/workflows/ci.yml` | Installs development dependencies, then runs formatting, linting, type checks, and pytest coverage on pushes and pull requests. |
+
+Ruff checks formatting and common Python defects. Mypy strictly checks the
+application modules. Pytest-cov reports line and branch coverage so coverage
+gaps can guide meaningful future tests.
+
+## Production Readiness Boundaries
+
+`config.py` is shared by API and CLI/database operations. It validates process
+environment settings with Pydantic without an additional settings dependency.
+Testing and production require an explicit SQLite path; development keeps the
+original `produtos.db` default. API documentation is disabled by default in
+production. See README for variables and startup examples.
+
+`api_errors.py` registers framework, request-validation, persistence, and generic
+exception handlers. Existing `detail` responses remain available with an added
+`error.code`; validation errors omit submitted data and internal exception context.
+`schemas/error.py` documents this contract in OpenAPI. Product routes stay in
+`api.py` because their size does not yet justify a router package.
+
+The `/health` route calls the service, which calls a read-only database probe.
+The database context owns commit/rollback and connection closure. All SQL stays
+in `database.py`; no schema migration is performed. Write row counts detect
+products removed after a service lookup, and only unique-name failures translate
+to duplicate-product errors.
+
+The new configuration, readiness, security, and database-reliability tests use
+temporary databases. The full suite still includes every prior test. CI includes
+dependency compatibility checking, and mypy/coverage include the new modules.

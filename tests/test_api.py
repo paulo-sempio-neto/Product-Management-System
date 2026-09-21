@@ -1,181 +1,164 @@
+import os
+import sqlite3
+import subprocess
+import sys
+from contextlib import closing
+from pathlib import Path
 
 from fastapi.testclient import TestClient
+
 import api
-from api import app
-from database import create_table, create_product, clear_products
-
-# ============================================
-# CONFIGURAÇÃO
-# ============================================
-
-TEST_DB = "test_api.db"
-
-client = TestClient(app)
 
 
-def setup():
+def test_importing_api_does_not_initialize_database(tmp_path):
+    database_path = tmp_path / "import_only.db"
+    project_root = Path(__file__).resolve().parent.parent
+    environment = os.environ.copy()
+    environment["DB_NAME"] = str(database_path)
+    environment["PYTHONPATH"] = str(project_root)
+    environment["PYTHONDONTWRITEBYTECODE"] = "1"
 
-    create_table(TEST_DB)
-    clear_products(TEST_DB)
-    
+    result = subprocess.run(
+        [sys.executable, "-c", "import api"],
+        cwd=tmp_path,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
 
-    create_product("Arroz", 12.0, TEST_DB)
-    create_product("Feijão", 8.0, TEST_DB)
-    create_product("Macarrão", 5.0, TEST_DB)
-
-    api.DB_NAME = TEST_DB
-
-
-def teardown():
-    """Limpa o banco depois de cada teste"""
-    clear_products(TEST_DB)
+    assert result.returncode == 0, result.stderr
+    assert not database_path.exists()
 
 
-# ============================================
-# TESTES DA API
-# ============================================
+def test_application_lifespan_initializes_database(api_db_path, monkeypatch):
+    monkeypatch.setattr(api, "DB_NAME", str(api_db_path))
+    assert not api_db_path.exists()
 
-def test_root():
-    """Testa a rota raiz"""
-    response = client.get("/")
+    with TestClient(api.app):
+        assert api_db_path.exists()
+        with closing(sqlite3.connect(api_db_path)) as connection:
+            table = connection.execute(
+                """
+                SELECT name
+                FROM sqlite_master
+                WHERE type = 'table' AND name = 'products'
+                """
+            ).fetchone()
+
+    assert table == ("products",)
+
+
+def test_root(api_client):
+    response = api_client.get("/")
     assert response.status_code == 200
     assert response.json() == {"message": "Bem-vindo à API de Produtos!"}
 
 
-def test_list_products():
-    """Testa GET /products"""
-    setup()
-    response = client.get("/products")
+def test_api_client_starts_with_empty_database(api_client):
+    response = api_client.get("/products")
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+def test_list_products(seeded_api_client):
+    response = seeded_api_client.get("/products")
     assert response.status_code == 200
     assert len(response.json()) == 3
     assert response.json()[0]["name"] == "Arroz"
-    teardown()
 
 
-def test_create_product():
-    """Testa POST /products"""
-    setup()
-    response = client.post(
+def test_create_product(api_client):
+    response = api_client.post(
         "/products",
-        json={"name": "Banana", "price": 5.0}
+        json={"name": "Banana", "price": 5.0},
     )
     assert response.status_code == 201
     assert response.json()["name"] == "Banana"
     assert response.json()["price"] == 5.0
     assert "id" in response.json()
-    teardown()
 
 
-def test_create_product_duplicate():
-    """Testa POST /products com nome duplicado"""
-    setup()
-    client.post("/products", json={"name": "Banana", "price": 5.0})
-    response = client.post("/products", json={"name": "Banana", "price": 10.0})
+def test_create_product_duplicate(api_client):
+    api_client.post("/products", json={"name": "Banana", "price": 5.0})
+    response = api_client.post(
+        "/products",
+        json={"name": "Banana", "price": 10.0},
+    )
     assert response.status_code == 400
     assert "Produto já cadastrado" in response.text
-    teardown()
 
 
-def test_create_product_invalid_price():
-    """Testa POST /products com preço negativo"""
-    setup()
-    response = client.post(
+def test_create_product_invalid_price(api_client):
+    response = api_client.post(
         "/products",
-        json={"name": "Teste", "price": -10.0}
+        json={"name": "Teste", "price": -10.0},
     )
     assert response.status_code == 422
-    teardown()
 
 
-def test_create_product_empty_name():
-    """Testa POST /products com nome vazio"""
-    setup()
-    response = client.post(
+def test_create_product_empty_name(api_client):
+    response = api_client.post(
         "/products",
-        json={"name": "", "price": 10.0}
+        json={"name": "", "price": 10.0},
     )
     assert response.status_code == 422
-    teardown()
 
 
-def test_get_product_by_id():
-    """Testa GET /products/{product_id}"""
-    setup()
-    response = client.get("/products/1")
+def test_get_product_by_id(seeded_api_client):
+    response = seeded_api_client.get("/products/1")
     assert response.status_code == 200
     assert response.json()["name"] == "Arroz"
     assert response.json()["price"] == 12.0
-    teardown()
 
 
-def test_get_product_not_found():
-    """Testa GET /products/{product_id} com ID inexistente"""
-    setup()
-    response = client.get("/products/999")
+def test_get_product_not_found(seeded_api_client):
+    response = seeded_api_client.get("/products/999")
     assert response.status_code == 404
     assert "Produto não encontrado" in response.text
-    teardown()
 
 
-def test_update_product():
-    """Testa PUT /products/{product_id}"""
-    setup()
-    response = client.put(
+def test_update_product(seeded_api_client):
+    response = seeded_api_client.put(
         "/products/1",
-        json={"name": "Arroz Integral", "price": 15.0}
+        json={"name": "Arroz Integral", "price": 15.0},
     )
     assert response.status_code == 200
     assert response.json()["name"] == "Arroz Integral"
     assert response.json()["price"] == 15.0
-    teardown()
 
 
-def test_update_product_not_found():
-    """Testa PUT /products/{product_id} com ID inexistente"""
-    setup()
-    response = client.put(
+def test_update_product_not_found(seeded_api_client):
+    response = seeded_api_client.put(
         "/products/999",
-        json={"name": "Teste", "price": 10.0}
+        json={"name": "Teste", "price": 10.0},
     )
     assert response.status_code == 404
     assert "Produto não encontrado" in response.text
-    teardown()
 
 
-def test_delete_product():
-    """Testa DELETE /products/{product_id}"""
-    setup()
-    response = client.delete("/products/1")
+def test_delete_product(seeded_api_client):
+    response = seeded_api_client.delete("/products/1")
     assert response.status_code == 204
-    response = client.get("/products/1")
+    response = seeded_api_client.get("/products/1")
     assert response.status_code == 404
-    teardown()
 
 
-def test_delete_product_not_found():
-    """Testa DELETE /products/{product_id} com ID inexistente"""
-    setup()
-    response = client.delete("/products/999")
+def test_delete_product_not_found(seeded_api_client):
+    response = seeded_api_client.delete("/products/999")
     assert response.status_code == 404
     assert "Produto não encontrado" in response.text
-    teardown()
 
 
-def test_search_products():
-    """Testa GET /products/search/?name=..."""
-    setup()
-    response = client.get("/products/search/?name=ar")
+def test_search_products(seeded_api_client):
+    response = seeded_api_client.get("/products/search/?name=ar")
     assert response.status_code == 200
     assert len(response.json()) == 2
     assert response.json()[0]["name"] == "Arroz"
     assert response.json()[1]["name"] == "Macarrão"
-    teardown()
 
 
-def test_search_products_not_found():
-    """Testa GET /products/search/?name=... sem resultados"""
-    setup()
-    response = client.get("/products/search/?name=xyz")
+def test_search_products_not_found(seeded_api_client):
+    response = seeded_api_client.get("/products/search/?name=xyz")
     assert response.status_code == 404
     assert "Nenhum produto encontrado" in response.text
-    teardown()

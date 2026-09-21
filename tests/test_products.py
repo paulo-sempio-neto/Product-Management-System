@@ -1,8 +1,8 @@
 from database import (
     find_product_by_id,
     find_product_by_name,
-    filter_products_by_partial_name
 )
+from product_service import search_products
 
 
 def test_find_product_by_id(setup_products):
@@ -39,7 +39,7 @@ def test_find_product_by_name_when_product_does_not_exist(setup_products):
 
 def test_filter_products_by_partial_name(setup_products):
 
-    products = filter_products_by_partial_name("ri", setup_products)
+    products = search_products("ri", setup_products)
 
     assert len(products) == 1
     assert products[0]["name"] == "Rice"
@@ -47,6 +47,6 @@ def test_filter_products_by_partial_name(setup_products):
 
 def test_filter_products_by_partial_name_with_multiple_results(setup_products):
 
-    products = filter_products_by_partial_name("a", setup_products)
+    products = search_products("a", setup_products)
 
     assert len(products) == 2

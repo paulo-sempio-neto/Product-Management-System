@@ -1,48 +1,42 @@
 import constants
-from database import ( 
-    create_product as save_product_to_database,
-    update_product as update_product_database,
-    delete_product as delete_product_database,
-    find_product_by_id, 
-    find_product_by_name, 
-    filter_products_by_partial_name,
-    load_products,
-    create_table 
-)
-from product_service import (
-    read_product_name,
-    read_product_id,
+import product_service
+from cli_input import (
+    read_menu_option,
     read_price,
-    read_menu_option
+    read_product_id,
+    read_product_name,
 )
 
 
-def create_product():
+def create_product() -> None:
     """Cria um novo produto no banco de dados"""
     name = read_product_name(constants.PROMPT_PRODUCT_NAME)
     if name is None:
         return
 
-    existing = find_product_by_name(name)
-    if existing:
+    price = read_price(constants.PROMPT_PRODUCT_PRICE)
+
+    try:
+        product_service.create_product(name, price)
+    except product_service.DuplicateProductError:
         print(constants.ERROR_PRODUCT_DUPLICATE)
         return
-
-    price = read_price(constants.PROMPT_PRODUCT_PRICE)
-    
-    save_product_to_database(name, price)
+    except product_service.ProductValidationError:
+        print(constants.ERROR_INVALID_NAME)
+        return
 
     print(constants.SUCCESS_PRODUCT_CREATED)
 
 
-def search_product():
+def search_product() -> None:
     """Busca um produto pelo ID"""
     product_id = read_product_id(constants.PROMPT_PRODUCT_ID)
     if product_id is None:
         return
 
-    product = find_product_by_id(product_id)
-    if product is None:
+    try:
+        product = product_service.get_product(product_id)
+    except product_service.ProductNotFoundError:
         print(constants.ERROR_PRODUCT_NOT_FOUND)
         return
 
@@ -51,43 +45,46 @@ def search_product():
     print(f"Preço: R$ {product['price']:.2f}")
 
 
-def update_product():
+def update_product() -> None:
     """Atualiza o preço de um produto"""
     product_id = read_product_id(constants.PROMPT_PRODUCT_ID)
     if product_id is None:
         return
 
-    product = find_product_by_id(product_id)
-    if product is None:
+    try:
+        product = product_service.get_product(product_id)
+    except product_service.ProductNotFoundError:
         print(constants.ERROR_PRODUCT_NOT_FOUND)
         return
 
     new_price = read_price(constants.PROMPT_NEW_PRICE)
-    
-    update_product_database(product_id, product["name"], new_price)
+    product_service.update_product(
+        product_id,
+        product["name"],
+        new_price,
+    )
 
     print(constants.SUCCESS_PRODUCT_UPDATED)
 
 
-def delete_product():
+def delete_product() -> None:
     """Remove um produto"""
     product_id = read_product_id(constants.PROMPT_PRODUCT_ID)
     if product_id is None:
         return
 
-    product = find_product_by_id(product_id)
-    if product is None:
+    try:
+        product_service.delete_product(product_id)
+    except product_service.ProductNotFoundError:
         print(constants.ERROR_PRODUCT_NOT_FOUND)
         return
-
-    delete_product_database(product_id)
 
     print(constants.SUCCESS_PRODUCT_DELETED)
 
 
-def list_products():
+def list_products() -> None:
     """Lista todos os produtos"""
-    products = load_products()
+    products = product_service.list_products()
     if not products:
         print(constants.MSG_NO_PRODUCTS)
         return
@@ -97,59 +94,66 @@ def list_products():
         print(f"ID {product['id']} - {product['name']}: R$ {product['price']:.2f}")
 
 
-def show_average_product_price():
+def show_average_product_price() -> None:
     """Mostra o preço médio dos produtos"""
-    products = load_products()
+    products = product_service.list_products()
     if not products:
         print(constants.MSG_NO_PRODUCTS)
         return
 
-    total = sum(p["price"] for p in products)
-    average = total / len(products)
+    average = product_service.calculate_average_price(products)
     print(f"Preço médio dos produtos: R$ {average:.2f}")
 
 
-def list_products_above_price():
+def list_products_above_price() -> None:
     """Lista produtos acima de um preço mínimo"""
-    products = load_products()
+    products = product_service.list_products()
     if not products:
         print(constants.MSG_NO_PRODUCTS)
         return
 
     minimum_price = read_price(constants.PROMPT_MINIMUM_PRICE)
-    
-    found = False
+    matching_products = product_service.filter_products_by_minimum_price(
+        products,
+        minimum_price,
+    )
+
     print(f"Produtos com preço maior ou igual a R$ {minimum_price:.2f}:")
-    
-    for product in products:
-        if product["price"] >= minimum_price:
-            print(f"ID {product['id']} - {product['name']}: R$ {product['price']:.2f}")
-            found = True
-    
-    if not found:
+    for product in matching_products:
+        print(f"ID {product['id']} - {product['name']}: R$ {product['price']:.2f}")
+
+    if not matching_products:
         print(constants.MSG_NO_PRODUCTS_ABOVE)
 
 
-def search_products_by_partial_name():
+def search_products_by_partial_name() -> None:
     """Busca produtos por parte do nome"""
     partial_name = input(constants.PROMPT_PARTIAL_NAME).strip().lower()
     if not partial_name:
         print(constants.ERROR_INVALID_NAME)
         return
 
-    products = filter_products_by_partial_name(partial_name)
+    products = product_service.search_products(partial_name)
     if not products:
         print(constants.MSG_NO_PRODUCTS_FOUND)
         return
 
     print("Produtos encontrados:")
     for product in products:
-        print(f"ID: {product['id']} | Nome: {product['name']} | Preço: R$ {product['price']:.2f}")
+        print(
+            f"ID: {product['id']} | "
+            f"Nome: {product['name']} | "
+            f"Preço: R$ {product['price']:.2f}"
+        )
 
 
-def show_menu():
+def show_menu() -> None:
     """Exibe o menu principal"""
-    create_table()  # Garante que a tabela existe
+    try:
+        product_service.initialize_products()
+    except product_service.ProductPersistenceError:
+        print(constants.ERROR_DATABASE)
+        return
 
     while True:
         print()
@@ -159,24 +163,27 @@ def show_menu():
 
         option = read_menu_option()
 
-        if option == "1":
-            create_product()
-        elif option == "2":
-            search_product()
-        elif option == "3":
-            update_product()
-        elif option == "4":
-            delete_product()
-        elif option == "5":
-            list_products()
-        elif option == "6":
-            show_average_product_price()
-        elif option == "7":
-            list_products_above_price()
-        elif option == "8":
-            search_products_by_partial_name()
-        elif option == "9":
-            print(constants.EXIT_MESSAGE)
-            break
-        else:
-            print(constants.ERROR_INVALID_OPTION)
+        try:
+            if option == "1":
+                create_product()
+            elif option == "2":
+                search_product()
+            elif option == "3":
+                update_product()
+            elif option == "4":
+                delete_product()
+            elif option == "5":
+                list_products()
+            elif option == "6":
+                show_average_product_price()
+            elif option == "7":
+                list_products_above_price()
+            elif option == "8":
+                search_products_by_partial_name()
+            elif option == "9":
+                print(constants.EXIT_MESSAGE)
+                break
+            else:
+                print(constants.ERROR_INVALID_OPTION)
+        except product_service.ProductPersistenceError:
+            print(constants.ERROR_DATABASE)

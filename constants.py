@@ -14,7 +14,7 @@ MENU_OPTIONS = {
     "6": "Mostrar preço médio",
     "7": "Listar produtos acima de um preço",
     "8": "Buscar produtos por parte do nome",
-    "9": "Sair"
+    "9": "Sair",
 }
 
 
@@ -27,6 +27,7 @@ ERROR_INVALID_PRICE = "Digite um preço válido."
 ERROR_INVALID_NAME = "Nome inválido."
 ERROR_PRODUCT_NOT_FOUND = "Produto não encontrado."
 ERROR_PRODUCT_DUPLICATE = "Produto já cadastrado."
+ERROR_DATABASE = "Não foi possível acessar o banco de dados."
 
 
 SUCCESS_PRODUCT_CREATED = "Produto cadastrado com sucesso."

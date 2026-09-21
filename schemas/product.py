@@ -3,7 +3,14 @@ from pydantic import BaseModel, Field, field_validator
 
 class ProductCreate(BaseModel):
     name: str = Field(..., min_length=1)
-    price: float = Field(..., gt=0)
+    price: float = Field(..., gt=0, allow_inf_nan=False)
+
+    @field_validator("price", mode="before")
+    @classmethod
+    def price_not_boolean(cls, value: object) -> object:
+        if isinstance(value, bool):
+            raise ValueError("Preço deve ser um número")
+        return value
 
     @field_validator("name")
     @classmethod
