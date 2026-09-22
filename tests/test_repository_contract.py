@@ -4,7 +4,6 @@ import pytest
 
 import product_service
 from persistence import DatabaseDuplicateError, DatabaseError, ProductRepository
-from repositories import SQLiteProductRepository
 
 
 @pytest.fixture
@@ -70,8 +69,8 @@ def test_conflicting_storage_arguments_are_rejected(injected_repository):
         product_service.list_products("explicit.db", repository=injected_repository)
 
 
-def test_sqlite_adapter_obeys_repository_contract(tmp_path):
-    storage: ProductRepository = SQLiteProductRepository(str(tmp_path / "contract.db"))
+def test_adapter_obeys_repository_contract(product_repository):
+    storage: ProductRepository = product_repository
     storage.initialize()
     storage.check_health()
     assert storage.list_products() == []

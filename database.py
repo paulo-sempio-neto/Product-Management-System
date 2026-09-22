@@ -4,7 +4,7 @@ from contextlib import closing, contextmanager
 from pathlib import Path
 from typing import cast
 
-from config import get_settings
+from config import Settings, get_settings
 from migrations import ensure_current, initialize_schema
 from persistence import DatabaseDuplicateError as DatabaseDuplicateError
 from persistence import DatabaseError as DatabaseError
@@ -19,9 +19,12 @@ def get_connection(
     *,
     read_only: bool = False,
     existing_only: bool = False,
+    settings: Settings | None = None,
 ) -> Iterator[sqlite3.Connection]:
     """Yield a connection that is always committed/rolled back and closed."""
-    settings = get_settings()
+    settings = settings if settings is not None else get_settings(database_path=db_name)
+    if settings.database_backend != "sqlite":
+        raise ValueError("SQLite adapter requires the sqlite backend")
     database = db_name if db_name is not None else settings.database_path
     use_uri = read_only or existing_only
     if use_uri:
@@ -49,9 +52,11 @@ def get_connection(
         raise DatabaseError("Database operation failed") from exc
 
 
-def check_health(db_name: DatabasePath = None) -> None:
+def check_health(
+    db_name: DatabasePath = None, *, settings: Settings | None = None
+) -> None:
     """Probe the products table without creating a missing database."""
-    with get_connection(db_name, read_only=True) as connection:
+    with get_connection(db_name, read_only=True, settings=settings) as connection:
         ensure_current(connection)
         connection.execute("SELECT id FROM products LIMIT 1").fetchone()
 
@@ -64,15 +69,23 @@ def _product_from_row(row: tuple[int, str, float]) -> Product:
     }
 
 
-def create_table(db_name: DatabasePath = None) -> None:
+def create_table(
+    db_name: DatabasePath = None, *, settings: Settings | None = None
+) -> None:
     """Initialize empty storage; require explicit upgrades for existing schemas."""
-    with get_connection(db_name) as connection:
+    with get_connection(db_name, settings=settings) as connection:
         initialize_schema(connection)
 
 
-def create_product(name: str, price: float, db_name: DatabasePath = None) -> int:
+def create_product(
+    name: str,
+    price: float,
+    db_name: DatabasePath = None,
+    *,
+    settings: Settings | None = None,
+) -> int:
     """Insert a product and return its generated ID."""
-    with get_connection(db_name) as connection:
+    with get_connection(db_name, settings=settings) as connection:
         cursor = connection.execute(
             """
             INSERT INTO products (name, price)
@@ -95,9 +108,11 @@ def update_product(
     name: str,
     price: float,
     db_name: DatabasePath = None,
+    *,
+    settings: Settings | None = None,
 ) -> bool:
     """Update an existing product."""
-    with get_connection(db_name) as connection:
+    with get_connection(db_name, settings=settings) as connection:
         cursor = connection.execute(
             """
             UPDATE products
@@ -109,9 +124,14 @@ def update_product(
         return cursor.rowcount == 1
 
 
-def delete_product(product_id: int, db_name: DatabasePath = None) -> bool:
+def delete_product(
+    product_id: int,
+    db_name: DatabasePath = None,
+    *,
+    settings: Settings | None = None,
+) -> bool:
     """Delete a product by ID."""
-    with get_connection(db_name) as connection:
+    with get_connection(db_name, settings=settings) as connection:
         cursor = connection.execute(
             """
             DELETE FROM products
@@ -122,9 +142,11 @@ def delete_product(product_id: int, db_name: DatabasePath = None) -> bool:
         return cursor.rowcount == 1
 
 
-def load_products(db_name: DatabasePath = None) -> list[Product]:
+def load_products(
+    db_name: DatabasePath = None, *, settings: Settings | None = None
+) -> list[Product]:
     """Return all products in deterministic ID order."""
-    with get_connection(db_name) as connection:
+    with get_connection(db_name, settings=settings) as connection:
         rows = connection.execute(
             "SELECT id, name, price FROM products ORDER BY id"
         ).fetchall()
@@ -147,11 +169,13 @@ def save_products(products: list[Product], db_name: DatabasePath = None) -> None
 def find_product_by_id(
     product_id: int,
     db_name: DatabasePath = None,
+    *,
+    settings: Settings | None = None,
 ) -> Product | None:
     """Find a product by ID."""
     if not -(2**63) <= product_id < 2**63:
         return None
-    with get_connection(db_name) as connection:
+    with get_connection(db_name, settings=settings) as connection:
         row = connection.execute(
             "SELECT id, name, price FROM products WHERE id = ?",
             (product_id,),
@@ -162,9 +186,11 @@ def find_product_by_id(
 def find_product_by_name(
     name: str,
     db_name: DatabasePath = None,
+    *,
+    settings: Settings | None = None,
 ) -> Product | None:
     """Find a product by its exact stored name."""
-    with get_connection(db_name) as connection:
+    with get_connection(db_name, settings=settings) as connection:
         row = connection.execute(
             "SELECT id, name, price FROM products WHERE name = ?",
             (name,),

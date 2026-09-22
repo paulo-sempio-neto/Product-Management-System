@@ -6,6 +6,7 @@ services:
     restart: unless-stopped
     environment:
       APP_ENV: production
+      DB_BACKEND: sqlite
       API_DOCS_ENABLED: "false"
       DB_NAME: /data/products.db
       SQLITE_TIMEOUT: "5"

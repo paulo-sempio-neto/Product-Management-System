@@ -1,6 +1,7 @@
 """Explicit, transactional SQLite schema upgrades (run with python -m migrations)."""
 
 import argparse
+import re
 import sqlite3
 from typing import Literal
 
@@ -39,12 +40,27 @@ class MigrationError(DatabaseError):
     """Storage requires an explicit upgrade or manual schema/data review."""
 
 
-def _canonical(sql: str) -> str:
-    # Only recognize the project's known DDL, allowing whitespace and the quoting
-    # introduced by SQLite's RENAME. Do not adopt arbitrary look-alike tables.
-    return "".join(
-        sql.replace('"products"', "products").replace("IF NOT EXISTS", "").split()
-    ).rstrip(";")
+def _canonical(sql: str) -> tuple[str, ...]:
+    """Compare known DDL tokens; quoted contents and token boundaries are exact.
+
+    This is deliberately not a general SQL parser. Comments and unfamiliar DDL
+    remain unrecognized. Only the optional creation clause and SQLite's quoted
+    table name after RENAME are normalized, at their expected header positions.
+    """
+    tokens = re.findall(
+        r"'(?:''|[^'])*'|\"(?:\"\"|[^\"])*\"|"
+        r"[A-Za-z_][A-Za-z_0-9]*|"
+        r"\d+(?:\.\d*)?(?:[eE][+-]?\d+)?|<=|>=|<>|!=|==|[^\s]",
+        sql,
+    )
+    if tokens[:2] == ["CREATE", "TABLE"]:
+        if tokens[2:5] == ["IF", "NOT", "EXISTS"]:
+            del tokens[2:5]
+        if tokens[2:3] == ['"products"']:
+            tokens[2] = "products"
+    if tokens[-1:] == [";"]:
+        tokens.pop()
+    return tuple(tokens)
 
 
 def inspect_schema(connection: sqlite3.Connection) -> SchemaState:

@@ -1,6 +1,7 @@
 FROM python:3.14-slim
 
 ENV APP_ENV=production \
+    DB_BACKEND=sqlite \
     API_DOCS_ENABLED=false \
     DB_NAME=/data/products.db \
     PYTHONDONTWRITEBYTECODE=1 \

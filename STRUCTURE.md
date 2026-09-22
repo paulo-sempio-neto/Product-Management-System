@@ -60,16 +60,17 @@ the tracked repository layout.
 | Path | Current responsibility |
 |---|---|
 | `main.py` | CLI entry point. Calls `cli.show_menu()` when executed directly. |
-| `api.py` | Creates the FastAPI application, maps product-service outcomes to HTTP responses, and initializes the configured database during application lifespan. |
+| `api.py` | Provides `create_app` with repository injection and the compatible `app` entry point; maps service outcomes to HTTP and initializes storage during lifespan. |
 | `cli.py` | Implements the interactive terminal menu and formats product-service results for terminal users. |
 | `cli_input.py` | Parses and validates terminal input for prices, names, IDs, and menu options. |
 | `database.py` | Manages SQLite connections and implements table creation, queries, and persistence. |
 | `persistence.py` | Defines backend-neutral product types, persistence failures, and the repository protocol. |
-| `repositories.py` | Selects the SQLite repository and adapts the established database functions. |
+| `repositories.py` | Selects a repository from validated backend settings, snapshots its connection configuration, and adapts the established SQLite functions. |
 | `migrations.py` | Inspects schema state and performs explicit transactional SQLite upgrades. |
 | `docs/database-evolution.md` | Migration operations, modeling decisions, and future PostgreSQL compatibility requirements. |
 | `tests/test_migrations.py` | Exercises upgrades, constraint enforcement, refusal paths, and rollback. |
-| `tests/test_repository_contract.py` | Verifies service injection and the SQLite repository contract. |
+| `tests/test_repository_contract.py` | Verifies service injection and the backend-parametrized repository contract. |
+| `tests/test_composition.py` | Verifies backend selection, configuration snapshots, repository injection, and independent application instances. |
 | `product_service.py` | Implements shared product normalization, validation, duplicate checks, missing-product handling, CRUD coordination, search, and price reports. |
 | `constants.py` | Stores CLI menu labels, prompts, validation messages, success messages, and error messages in Portuguese. |
 | `schemas/product.py` | Defines the Pydantic creation, update, and response models used by the API. |
@@ -114,7 +115,9 @@ api.py
                     └── database.py → configured SQLite database
 ```
 
-The API reads `DB_NAME` from the environment or defaults to `produtos.db`.
+The API factory resolves `DB_BACKEND` and `DB_NAME` through validated settings;
+SQLite and `produtos.db` remain the development defaults. Its repository is fixed
+for that application instance and injected into routes through a dependency.
 Importing `api.py` does not access SQLite. Fresh storage is initialized when
 the FastAPI lifespan starts; legacy storage requires an explicit migration first.
 Routes call the product service through the unchanged public functions.
@@ -130,8 +133,10 @@ tests/
                                └── temporary SQLite databases
 ```
 
-Every persistence test uses a fixture-controlled temporary SQLite database.
-API clients enter FastAPI lifespan after configuring their unique database, so
+Shared repository and API tests use the `product_repository` fixture, parametrized
+with `sqlite` today. Future adapters can add an isolated backend fixture and join
+that contract suite. SQLite migration and file tests retain explicit SQLite
+fixtures. API clients enter the lifespan of their own application instance, so
 tests do not share product data or write repository database files.
 
 ## Interface Boundaries
@@ -214,7 +219,8 @@ gaps can guide meaningful future tests.
 `config.py` is shared by API and CLI/database operations. It validates process
 environment settings with Pydantic without an additional settings dependency.
 Testing and production require an explicit SQLite path; development keeps the
-original `produtos.db` default. API documentation is disabled by default in
+original `produtos.db` default. `DB_BACKEND` explicitly selects storage and rejects
+unsupported backends; only `sqlite` is implemented. API documentation is disabled by default in
 production. See README for variables and startup examples.
 
 `api_errors.py` registers framework, request-validation, persistence, and generic
@@ -239,7 +245,7 @@ dependency compatibility checking, and mypy/coverage include the new modules.
 `Dockerfile` copies only the runtime API modules and schemas, installs the pinned
 runtime dependencies, and starts Uvicorn on port 8000 as a non-root user. Its
 production defaults require no source-mounted files: `APP_ENV=production`,
-`DB_NAME=/data/products.db`, and disabled API docs. The writable `/data` directory
+`DB_BACKEND=sqlite`, `DB_NAME=/data/products.db`, and disabled API docs. The writable `/data` directory
 is the only application state location.
 
 `compose.yaml` persists `/data` in the `product_data` named volume, binds the API

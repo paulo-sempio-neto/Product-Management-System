@@ -14,6 +14,18 @@ selecting one. Service tests inject a non-SQLite repository; SQL and driver exce
 classification never enter business rules. The existing `db_name` argument remains
 a compatibility path for API, CLI, tests, and callers.
 
+Phase 6A makes selection explicit through validated `DB_BACKEND` configuration.
+The default remains `sqlite`; unsupported values fail before storage access.
+`get_repository(settings=...)` captures the validated path and timeout rather than
+re-reading process configuration during each operation. Passing both settings and
+a path override is rejected. SQLite URLs/URIs are not treated as file paths.
+
+`create_app(settings=..., repository=...)` composes an independent API instance.
+Its lifespan and HTTP dependencies use the same repository; importing the default
+`api:app` still performs no storage I/O. The CLI keeps its existing service calls
+and resolves the same factory when no repository is injected. SQL, connection
+handling, and SQLite settings remain inside the adapter boundary.
+
 Repository writes each own a transaction. Multiple service calls are still not one
 transaction: preflight duplicate/existence checks do not provide optimistic locking.
 Database uniqueness remains authoritative if a concurrent insert wins a race.
@@ -35,6 +47,13 @@ schema is `current`. Unexpected versions, altered tables, and legacy custom inde
 triggers, views, or additional tables require manual review. This deliberately
 conservative adoption policy may reject an equivalent manually authored schema.
 It never stamps an unknown schema merely because a table named `products` exists.
+
+Schema verification compares SQL tokens, preserving whitespace and escaped quotes
+inside literals and boundaries between identifiers. Whitespace between tokens,
+the known optional `IF NOT EXISTS` header, and the quoted `products` table name
+are tolerated. This is intentionally not a general SQL normalizer: unfamiliar
+DDL remains rejected for review. Phase 6A changes verification only, not revision-1
+DDL, version stamps, or stored rows.
 
 `status` uses a read-only connection, validates legacy data, and never creates a
 missing file. `upgrade` also requires an existing file and uses one transaction
@@ -130,6 +149,14 @@ PostgreSQL distinguishes approximate floating point from exact numeric types in 
 PostgreSQL is not a configured backend yet. There is no `DATABASE_URL` switch,
 driver dependency, or untested claim that SQLite SQL runs on PostgreSQL. A future
 adapter can implement `ProductRepository` without changing product business rules.
+
+The shared `product_repository` pytest fixture is parametrized over implemented
+backends (currently just `sqlite`). API clients receive that repository through
+`create_app`, rather than patching a global SQLite path. Phase 6B should supply an
+isolated real-PostgreSQL fixture with explicit setup/cleanup and add it to the
+shared contract/API suite. Keep SQLite migration, PRAGMA, and file-level tests
+separate; do not pretend they are cross-backend tests. No PostgreSQL test service,
+driver, or migration runner is introduced in Phase 6A.
 
 | SQLite behavior | PostgreSQL adapter requirement |
 |---|---|

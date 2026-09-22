@@ -96,7 +96,7 @@ def test_search_products_ignores_case_and_accents(service_db):
 
 
 def test_database_errors_are_translated(monkeypatch):
-    def fail_to_load(_db_name):
+    def fail_to_load(_db_name, **_kwargs):
         raise database.DatabaseError("unavailable")
 
     monkeypatch.setattr(database, "load_products", fail_to_load)

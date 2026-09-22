@@ -72,7 +72,7 @@ def test_non_unique_constraint_is_not_reported_as_duplicate(setup_products):
 def test_service_classifies_write_failure(
     setup_products, monkeypatch, database_error, service_error
 ):
-    def fail_write(*_args):
+    def fail_write(*_args, **_kwargs):
         raise database_error("internal detail")
 
     monkeypatch.setattr(database, "create_product", fail_write)
@@ -84,7 +84,7 @@ def test_service_classifies_write_failure(
 def test_product_removed_between_lookup_and_write_is_not_success(
     setup_products, monkeypatch, operation
 ):
-    monkeypatch.setattr(database, operation, lambda *_args: False)
+    monkeypatch.setattr(database, operation, lambda *_args, **_kwargs: False)
     with pytest.raises(product_service.ProductNotFoundError):
         if operation == "update_product":
             product_service.update_product(1, "Changed", 12, setup_products)

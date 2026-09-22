@@ -262,6 +262,7 @@ process; restart the API after configuration changes.
 | Variable | Default | Purpose |
 |---|---|---|
 | `APP_ENV` | `development` | `development`, `testing`, or `production` |
+| `DB_BACKEND` | `sqlite` | Explicit backend selection; only `sqlite` is implemented |
 | `DB_NAME` | `produtos.db` in development | SQLite file path; must be explicit in testing and production |
 | `SQLITE_TIMEOUT` | `5` | Lock wait in seconds, greater than zero and at most 60 |
 | `API_DOCS_ENABLED` | `true`, except in production | Enables `/docs`, `/redoc`, and `/openapi.json` |
@@ -271,11 +272,15 @@ for a stable location in production. The containing directory must already exist
 Invalid settings fail startup. In-memory SQLite is not supported by configuration
 because operations use separate connections. Selecting `testing` requires a path;
 it does not itself create or manage test isolation (pytest fixtures do that).
+Unknown backends, including `postgresql`, fail configuration validation. `DB_NAME`
+accepts a file path, not a database URL or SQLite URI. Existing deployments without
+`DB_BACKEND` retain the SQLite default.
 
 Example PowerShell configuration for a separate local database:
 
 ```powershell
 $env:APP_ENV = "development"
+$env:DB_BACKEND = "sqlite"
 $env:DB_NAME = "local-products.db"
 $env:SQLITE_TIMEOUT = "5"
 python -m uvicorn api:app --reload
@@ -359,6 +364,13 @@ intentionally out of scope.
 Business rules consume `ProductRepository` from `persistence.py`; `repositories.py`
 selects SQLite by default. Services also accept an explicit `repository=` for
 testing and future adapters. SQLite remains the only configured runtime backend.
+
+`get_repository(settings=...)` binds a repository to a validated configuration
+snapshot, including its file path and timeout. `create_app(settings=...,
+repository=...)` supports isolated application composition and test injection;
+the existing `uvicorn api:app` entry point remains unchanged. Shared repository
+and API tests use a backend-parametrized fixture, currently containing only SQLite.
+SQLite schema, migration, and file-behavior tests remain backend-specific.
 
 Revision 1 adds database checks for nonblank text names and positive finite prices.
 It retains case-sensitive uniqueness, fractional price precision, product IDs,

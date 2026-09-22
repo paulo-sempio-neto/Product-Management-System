@@ -3,18 +3,20 @@ from fastapi.testclient import TestClient
 
 import api
 import product_service
+from config import Settings
+from repositories import get_repository
 
 
-def test_health_checks_storage_without_modifying_it(api_client, api_db_path):
+def test_health_checks_storage_without_modifying_it(sqlite_api_client, api_db_path):
     before = api_db_path.read_bytes()
-    response = api_client.get("/health")
+    response = sqlite_api_client.get("/health")
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
     assert api_db_path.read_bytes() == before
 
 
 def test_liveness_does_not_check_storage(api_client, monkeypatch):
-    def fail_storage(_db_name):
+    def fail_storage(*, repository):
         raise product_service.ProductPersistenceError
 
     monkeypatch.setattr(api, "check_product_storage", fail_storage)
@@ -23,10 +25,13 @@ def test_liveness_does_not_check_storage(api_client, monkeypatch):
     assert response.json() == {"status": "ok"}
 
 
-def test_unavailable_health_returns_safe_503(api_client, monkeypatch, tmp_path):
+def test_unavailable_health_returns_safe_503(sqlite_api_client, tmp_path):
     target = tmp_path / "missing.db"
-    monkeypatch.setattr(api, "DB_NAME", str(target))
-    response = api_client.get("/health")
+    unavailable = get_repository(settings=Settings(database_path=str(target)))
+    sqlite_api_client.app.dependency_overrides[api.get_product_repository] = lambda: (
+        unavailable
+    )
+    response = sqlite_api_client.get("/health")
     assert response.status_code == 503
     assert response.json()["error"]["code"] == "service_unavailable"
     assert str(target) not in response.text
@@ -104,13 +109,13 @@ def test_oversized_id_does_not_cause_internal_error(api_client):
 
 
 @pytest.mark.parametrize("unexpected", [False, True])
-def test_internal_failures_are_sanitized(api_client, monkeypatch, unexpected):
-    def fail_read(_db_name):
+def test_internal_failures_are_sanitized(api_app, monkeypatch, unexpected):
+    def fail_read(*, repository):
         error = RuntimeError if unexpected else product_service.ProductPersistenceError
         raise error("secret database path and credentials")
 
     monkeypatch.setattr(api, "list_products", fail_read)
-    with TestClient(api.app, raise_server_exceptions=False) as client:
+    with TestClient(api_app, raise_server_exceptions=False) as client:
         response = client.get("/products")
     assert response.status_code == 500
     assert response.json()["error"]["code"] == "internal_server_error"

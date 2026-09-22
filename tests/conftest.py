@@ -8,7 +8,9 @@ import pytest
 from fastapi.testclient import TestClient
 
 import api
+from config import Settings
 from database import create_product, create_table
+from repositories import get_repository
 
 
 @pytest.fixture
@@ -36,10 +38,32 @@ def api_db_path(tmp_path):
 
 
 @pytest.fixture
-def api_client(api_db_path, monkeypatch):
-    monkeypatch.setattr(api, "DB_NAME", str(api_db_path))
+def sqlite_repository(api_db_path):
+    return get_repository(
+        settings=Settings(environment="testing", database_path=str(api_db_path))
+    )
 
-    with TestClient(api.app) as client:
+
+@pytest.fixture(params=["sqlite"])
+def product_repository(request):
+    """Add backend fixtures here to reuse API and repository behavior tests."""
+    return request.getfixturevalue(f"{request.param}_repository")
+
+
+@pytest.fixture
+def api_app(product_repository):
+    return api.create_app(Settings(), repository=product_repository)
+
+
+@pytest.fixture
+def api_client(api_app):
+    with TestClient(api_app) as client:
+        yield client
+
+
+@pytest.fixture
+def sqlite_api_client(sqlite_repository):
+    with TestClient(api.create_app(Settings(), repository=sqlite_repository)) as client:
         yield client
 
 

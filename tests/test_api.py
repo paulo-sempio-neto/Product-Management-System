@@ -8,6 +8,7 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 import api
+from config import Settings
 
 
 def test_importing_api_does_not_initialize_database(tmp_path):
@@ -31,11 +32,11 @@ def test_importing_api_does_not_initialize_database(tmp_path):
     assert not database_path.exists()
 
 
-def test_application_lifespan_initializes_database(api_db_path, monkeypatch):
-    monkeypatch.setattr(api, "DB_NAME", str(api_db_path))
+def test_application_lifespan_initializes_database(api_db_path):
+    application = api.create_app(Settings(database_path=str(api_db_path)))
     assert not api_db_path.exists()
 
-    with TestClient(api.app):
+    with TestClient(application):
         assert api_db_path.exists()
         with closing(sqlite3.connect(api_db_path)) as connection:
             table = connection.execute(

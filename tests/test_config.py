@@ -10,13 +10,20 @@ import database
 
 @pytest.fixture(autouse=True)
 def clean_environment(monkeypatch):
-    for name in ("APP_ENV", "DB_NAME", "SQLITE_TIMEOUT", "API_DOCS_ENABLED"):
+    for name in (
+        "APP_ENV",
+        "DB_BACKEND",
+        "DB_NAME",
+        "SQLITE_TIMEOUT",
+        "API_DOCS_ENABLED",
+    ):
         monkeypatch.delenv(name, raising=False)
 
 
 def test_development_defaults():
     settings = config.get_settings()
     assert settings.environment == "development"
+    assert settings.database_backend == "sqlite"
     assert settings.database_path == "produtos.db"
     assert settings.sqlite_timeout == 5.0
     assert settings.docs_enabled is True
@@ -46,9 +53,15 @@ def test_environment_settings(monkeypatch, tmp_path, environment):
     ("name", "value"),
     [
         ("APP_ENV", "prodution"),
+        ("DB_BACKEND", "postgresql"),
+        ("DB_BACKEND", "mysql"),
+        ("DB_BACKEND", "sqllite"),
+        ("DB_BACKEND", ""),
         ("DB_NAME", ""),
         ("DB_NAME", "   "),
         ("DB_NAME", ":memory:"),
+        ("DB_NAME", "postgresql://localhost/products"),
+        ("DB_NAME", "file:products.db?mode=memory"),
         ("SQLITE_TIMEOUT", "0"),
         ("SQLITE_TIMEOUT", "-1"),
         ("SQLITE_TIMEOUT", "nan"),

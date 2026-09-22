@@ -205,3 +205,54 @@ def test_current_version_with_schema_drift_is_rejected(tmp_path):
         connection.execute("ALTER TABLE products ADD COLUMN unexpected TEXT")
     with pytest.raises(migrations.MigrationError):
         database.check_health(target)
+
+
+@pytest.mark.parametrize(
+    ("original", "changed"),
+    [("'text'", "'te xt'"), ("'real'", "'re\tal'"), ("'integer'", "'inte\nger'")],
+)
+def test_schema_verification_preserves_whitespace_in_literals(
+    tmp_path, original, changed
+):
+    target = str(tmp_path / "changed-check.db")
+    with database.get_connection(target) as connection:
+        connection.execute(migrations.PRODUCTS_SCHEMA.replace(original, changed))
+        connection.execute("PRAGMA user_version = 1")
+    before = snapshot(target)
+    with pytest.raises(migrations.MigrationError):
+        database.check_health(target)
+    with pytest.raises(migrations.MigrationError):
+        database.create_table(target)
+    assert snapshot(target) == before
+
+
+@pytest.mark.parametrize(
+    "schema", [migrations.LEGACY_SCHEMA, migrations.PRODUCTS_SCHEMA]
+)
+def test_known_schema_allows_external_whitespace_and_quoted_table_name(
+    tmp_path, schema
+):
+    target = str(tmp_path / "formatted.db")
+    formatted = schema.replace(
+        "CREATE TABLE products", 'CREATE\nTABLE IF NOT EXISTS "products"'
+    ).replace(",\n", ",\n\n\t")
+    with database.get_connection(target) as connection:
+        connection.execute(formatted)
+        if schema == migrations.PRODUCTS_SCHEMA:
+            connection.execute("PRAGMA user_version = 1")
+        migrations.upgrade_schema(connection)
+    database.check_health(target)
+    assert database.create_product("Unchanged", 1.23456789, target) == 1
+
+
+@pytest.mark.parametrize(
+    ("left", "right"),
+    [
+        ("CHECK (name != 'a'' b')", "CHECK (name != 'a''b')"),
+        ("CHECK (name != 'IF NOT EXISTS')", "CHECK (name != '')"),
+        ("CHECK (name != '\"products\"')", "CHECK (name != 'products')"),
+        ("CREATE TABLE products (price REAL)", "CREATE TABLE products (priceREAL)"),
+    ],
+)
+def test_schema_comparison_does_not_rewrite_quoted_content_or_merge_tokens(left, right):
+    assert migrations._canonical(left) != migrations._canonical(right)
