@@ -39,3 +39,6 @@ jobs:
         run: >-
           python -B -m pytest --cov --cov-report=term-missing
           --cov-report=xml:coverage.xml
+
+      - name: Build production container image
+        run: docker build --tag product-management-system:${{ github.sha }} .

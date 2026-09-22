@@ -141,8 +141,10 @@ http://127.0.0.1:8000/docs
 
 ## 🗄 Database
 
-The application uses SQLite. The database layer creates the `products` table
-when the CLI starts or during the FastAPI application lifespan.
+The application uses SQLite through a typed repository boundary. Fresh storage
+is initialized when the CLI starts or during the FastAPI application lifespan.
+Existing legacy databases require an explicit upgrade; see
+[Database evolution](docs/database-evolution.md) before starting this version.
 
 Local runtime database files are ignored by Git and should not be committed.
 Automated tests create isolated databases under pytest's temporary directory.
@@ -197,7 +199,9 @@ flowchart TD
     API --> Service[product_service.py<br/>product rules]
     CLI[CLI workflows] --> Input[cli_input.py<br/>terminal parsing]
     CLI --> Service
-    Service --> Database[database.py<br/>SQL and connection lifecycle]
+    Service --> Repository[ProductRepository<br/>storage contract]
+    Repository --> Adapter[SQLiteProductRepository]
+    Adapter --> Database[database.py<br/>SQL and connection lifecycle]
     Database --> SQLite[(SQLite)]
 ```
 
@@ -277,10 +281,13 @@ $env:SQLITE_TIMEOUT = "5"
 python -m uvicorn api:app --reload
 ```
 
-`GET /health` is a readiness probe: it checks read access to the existing products
-table and returns `200 {"status":"ok"}` or a sanitized `503`. It neither creates
-a missing database nor verifies write access. Normal startup still initializes
-the table. Existing CRUD paths, success payloads, and error status codes remain.
+`GET /live` is a liveness probe: it confirms that the HTTP application can serve
+requests without accessing SQLite. `GET /health` is a readiness probe: it checks
+the current schema revision and read access to the products table, returning
+`200 {"status":"ok"}` or a
+sanitized `503`. It neither creates a missing database nor verifies write access.
+Startup initializes only empty storage. Existing CRUD paths, success payloads,
+and error status codes remain.
 
 Error responses retain `detail` and add `error.code`, for example:
 
@@ -300,8 +307,9 @@ are preserved. Error schemas and route groups are included in OpenAPI.
 SQL parameters are bound rather than interpolated. Connections use explicit
 transactions, rollback on exceptions, and close after each operation. Unique-name
 violations are distinguished from other integrity failures. Update/delete checks
-detect a product removed between the initial lookup and the write. Schema
-migrations and changes to existing database files are not part of this phase.
+detect a product removed between the initial lookup and the write. Explicit,
+transactional schema upgrades are described in the
+[migration runbook](docs/database-evolution.md). Startup never upgrades legacy data.
 
 The application remains unauthenticated: callers can access all CRUD operations.
 Do not expose it to untrusted clients yet. Listing and name search remain
@@ -310,3 +318,65 @@ Those abuse protections need a separate compatibility and deployment design;
 disabling API docs is not access control. SQLite still serializes writers, and
 multi-step service operations are not a single transaction or protected by
 optimistic locking. These are explicit limits of the current portfolio baseline.
+
+## Container Deployment
+
+The production image runs the API as an unprivileged user with `APP_ENV=production`,
+docs disabled, and SQLite stored at `/data/products.db`. The accompanying Compose
+file mounts that directory as the named `product_data` volume, so rebuilding or
+recreating the container does not discard product data.
+
+Build and start the local production-shaped deployment:
+
+```powershell
+docker compose up --build -d
+docker compose ps
+```
+
+The Compose port is bound to `127.0.0.1:8000`; check it with:
+
+```powershell
+Invoke-WebRequest http://127.0.0.1:8000/live
+Invoke-WebRequest http://127.0.0.1:8000/health
+```
+
+Use `docker compose logs -f api` for application logs and `docker compose down`
+to stop the service without deleting data. `docker compose down -v` also removes
+the persistent SQLite volume and is therefore destructive. Before copying a
+database backup, stop the API and all other writers cleanly. See the
+[migration and backup runbook](docs/database-evolution.md) for commands.
+
+Run only one API container against a SQLite volume. SQLite permits concurrent
+readers but serializes writers, and a shared local volume is not a multi-replica
+database. Put a TLS-terminating reverse proxy in front of the service when it must
+be reachable beyond the host, and do not treat disabled documentation as access
+control. The CI workflow builds the container image after its existing quality and
+test gates; image publication and platform-specific deployment credentials remain
+intentionally out of scope.
+
+## Database Evolution
+
+Business rules consume `ProductRepository` from `persistence.py`; `repositories.py`
+selects SQLite by default. Services also accept an explicit `repository=` for
+testing and future adapters. SQLite remains the only configured runtime backend.
+
+Revision 1 adds database checks for nonblank text names and positive finite prices.
+It retains case-sensitive uniqueness, fractional price precision, product IDs,
+and the autoincrement sequence. No currency scale or rounding rule is introduced.
+
+With all application writers stopped, inspect an existing file before upgrading:
+
+```powershell
+python -m migrations status --database produtos.db
+```
+
+After backing up and reviewing the result, the explicit upgrade command is:
+
+```powershell
+python -m migrations upgrade --database produtos.db
+```
+
+Both commands require an existing file to avoid creating a database from a mistyped
+path. Unknown/customized schemas and invalid legacy rows are refused. Consult
+[Database evolution](docs/database-evolution.md) for backup/restore, migration
+design, modeling decisions, and the PostgreSQL adapter compatibility checklist.

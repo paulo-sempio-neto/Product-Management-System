@@ -77,6 +77,12 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
+@app.get("/live", tags=["system"])
+def live() -> dict[str, str]:
+    """Liveness check: confirms the HTTP application can serve requests."""
+    return {"status": "ok"}
+
+
 @app.get("/", tags=["system"])
 def root() -> dict[str, str]:
     return {"message": "Bem-vindo à API de Produtos!"}

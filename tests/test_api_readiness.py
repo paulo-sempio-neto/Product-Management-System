@@ -13,6 +13,16 @@ def test_health_checks_storage_without_modifying_it(api_client, api_db_path):
     assert api_db_path.read_bytes() == before
 
 
+def test_liveness_does_not_check_storage(api_client, monkeypatch):
+    def fail_storage(_db_name):
+        raise product_service.ProductPersistenceError
+
+    monkeypatch.setattr(api, "check_product_storage", fail_storage)
+    response = api_client.get("/live")
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}
+
+
 def test_unavailable_health_returns_safe_503(api_client, monkeypatch, tmp_path):
     target = tmp_path / "missing.db"
     monkeypatch.setattr(api, "DB_NAME", str(target))
@@ -110,5 +120,6 @@ def test_internal_failures_are_sanitized(api_client, monkeypatch, unexpected):
 def test_openapi_documents_errors_and_health(api_client):
     schema = api_client.get("/openapi.json").json()
     assert "/health" in schema["paths"]
+    assert "/live" in schema["paths"]
     assert "ErrorResponse" in schema["components"]["schemas"]
     assert schema["paths"]["/products"]["get"]["tags"] == ["products"]

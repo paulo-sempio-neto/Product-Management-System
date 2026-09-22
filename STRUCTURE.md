@@ -9,7 +9,7 @@ interfaces:
 - A REST API built with FastAPI
 
 Both interfaces use the same product service for business rules. The service
-coordinates persistence through the SQLite data-access module.
+coordinates persistence through `ProductRepository`, with a default SQLite adapter.
 
 ## Repository Layout
 
@@ -64,6 +64,12 @@ the tracked repository layout.
 | `cli.py` | Implements the interactive terminal menu and formats product-service results for terminal users. |
 | `cli_input.py` | Parses and validates terminal input for prices, names, IDs, and menu options. |
 | `database.py` | Manages SQLite connections and implements table creation, queries, and persistence. |
+| `persistence.py` | Defines backend-neutral product types, persistence failures, and the repository protocol. |
+| `repositories.py` | Selects the SQLite repository and adapts the established database functions. |
+| `migrations.py` | Inspects schema state and performs explicit transactional SQLite upgrades. |
+| `docs/database-evolution.md` | Migration operations, modeling decisions, and future PostgreSQL compatibility requirements. |
+| `tests/test_migrations.py` | Exercises upgrades, constraint enforcement, refusal paths, and rollback. |
+| `tests/test_repository_contract.py` | Verifies service injection and the SQLite repository contract. |
 | `product_service.py` | Implements shared product normalization, validation, duplicate checks, missing-product handling, CRUD coordination, search, and price reports. |
 | `constants.py` | Stores CLI menu labels, prompts, validation messages, success messages, and error messages in Portuguese. |
 | `schemas/product.py` | Defines the Pydantic creation, update, and response models used by the API. |
@@ -76,6 +82,8 @@ the tracked repository layout.
 | `tests/test_products.py` | Tests database lookup by ID/name and service-level partial-name filtering. |
 | `requirements.txt` | Lists the pinned direct Python dependencies used by the current verified environment. |
 | `.gitignore` | Excludes local environments, caches, environment files, and SQLite database files from version control. |
+| `Dockerfile` | Builds the unprivileged production API image with its SQLite data path at `/data/products.db`. |
+| `compose.yaml` | Defines the local production-shaped API service, health check, and persistent named SQLite volume. |
 
 ## Current Data Flow
 
@@ -87,8 +95,9 @@ main.py
         ├── cli_input.py        (terminal input parsing and validation)
         ├── constants.py        (terminal text)
         └── product_service.py  (business rules)
-              └── database.py
-                    └── local SQLite database
+              └── ProductRepository (persistence.py)
+                    └── SQLiteProductRepository (repositories.py)
+                          └── database.py → SQLite
 ```
 
 The CLI initializes products through the service when `show_menu()` starts.
@@ -100,13 +109,15 @@ Workflow functions call the service and do not execute database operations.
 api.py
   ├── schemas/product.py  (request and response validation)
   └── product_service.py  (business rules)
-        └── database.py
-              └── configured SQLite database
+        └── ProductRepository (persistence.py)
+              └── SQLiteProductRepository (repositories.py)
+                    └── database.py → configured SQLite database
 ```
 
 The API reads `DB_NAME` from the environment or defaults to `produtos.db`.
-Importing `api.py` does not access SQLite. Table initialization occurs once
-when the FastAPI lifespan starts, and routes call the product service.
+Importing `api.py` does not access SQLite. Fresh storage is initialized when
+the FastAPI lifespan starts; legacy storage requires an explicit migration first.
+Routes call the product service through the unchanged public functions.
 
 ### Automated Tests
 
@@ -138,15 +149,12 @@ Pydantic still validates API request shapes at the HTTP boundary, while
 
 ## Database
 
-`database.py` uses Python's built-in `sqlite3` module. It creates one table:
-
-```sql
-CREATE TABLE IF NOT EXISTS products (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL UNIQUE,
-    price REAL NOT NULL
-);
-```
+`database.py` uses Python's built-in `sqlite3` module. The `products` table keeps
+an integer autoincrement primary key, an exactly unique text name, and a REAL
+price. Revision 1 adds named checks for nonblank text names and positive finite
+numeric prices. The immutable revision-1 DDL is in `migrations.py`; the SQLite
+`user_version` header records its revision. See
+[Database evolution](docs/database-evolution.md) for upgrade and modeling details.
 
 The default application database is `produtos.db`. Local `.db`, `.sqlite`,
 and `.sqlite3` files are ignored and should not be committed.
@@ -215,12 +223,28 @@ exception handlers. Existing `detail` responses remain available with an added
 `schemas/error.py` documents this contract in OpenAPI. Product routes stay in
 `api.py` because their size does not yet justify a router package.
 
-The `/health` route calls the service, which calls a read-only database probe.
-The database context owns commit/rollback and connection closure. All SQL stays
-in `database.py`; no schema migration is performed. Write row counts detect
+The `/live` route verifies that the HTTP process is serving without using storage.
+The `/health` route calls the service, which calls a read-only database readiness
+probe. The database context owns commit/rollback and connection closure. All SQL
+for CRUD stays in `database.py`, with versioned DDL in `migrations.py`. Write row counts detect
 products removed after a service lookup, and only unique-name failures translate
 to duplicate-product errors.
 
 The new configuration, readiness, security, and database-reliability tests use
 temporary databases. The full suite still includes every prior test. CI includes
 dependency compatibility checking, and mypy/coverage include the new modules.
+
+## Container Delivery
+
+`Dockerfile` copies only the runtime API modules and schemas, installs the pinned
+runtime dependencies, and starts Uvicorn on port 8000 as a non-root user. Its
+production defaults require no source-mounted files: `APP_ENV=production`,
+`DB_NAME=/data/products.db`, and disabled API docs. The writable `/data` directory
+is the only application state location.
+
+`compose.yaml` persists `/data` in the `product_data` named volume, binds the API
+only to the local host by default, and uses `/health` for the container readiness
+check. It is designed for one replica because SQLite writer locking and a local
+volume do not support horizontally scaled API instances. CI builds this image after
+the Python quality and test checks; publishing, an external reverse proxy, TLS,
+and orchestrator manifests are intentionally not included.
