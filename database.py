@@ -2,42 +2,31 @@ import sqlite3
 from collections.abc import Iterator
 from contextlib import closing, contextmanager
 from pathlib import Path
-from typing import TypedDict, cast
+from typing import cast
 
 from config import get_settings
-
-DatabasePath = str | None
-
-
-class Product(TypedDict):
-    """A product record as returned by the database layer."""
-
-    id: int
-    name: str
-    price: float
-
-
-class DatabaseError(Exception):
-    """Base error raised when a database operation cannot be completed."""
-
-
-class DatabaseIntegrityError(DatabaseError):
-    """Raised when SQLite rejects data because of an integrity constraint."""
-
-
-class DatabaseDuplicateError(DatabaseIntegrityError):
-    """The unique product-name constraint was violated."""
+from migrations import ensure_current, initialize_schema
+from persistence import DatabaseDuplicateError as DatabaseDuplicateError
+from persistence import DatabaseError as DatabaseError
+from persistence import DatabaseIntegrityError as DatabaseIntegrityError
+from persistence import DatabasePath as DatabasePath
+from persistence import Product as Product
 
 
 @contextmanager
 def get_connection(
-    db_name: DatabasePath = None, *, read_only: bool = False
+    db_name: DatabasePath = None,
+    *,
+    read_only: bool = False,
+    existing_only: bool = False,
 ) -> Iterator[sqlite3.Connection]:
     """Yield a connection that is always committed/rolled back and closed."""
     settings = get_settings()
     database = db_name if db_name is not None else settings.database_path
-    if read_only:
-        database = Path(database).resolve().as_uri() + "?mode=ro"
+    use_uri = read_only or existing_only
+    if use_uri:
+        mode = "ro" if read_only else "rw"
+        database = Path(database).resolve().as_uri() + f"?mode={mode}"
 
     try:
         with closing(
@@ -45,7 +34,7 @@ def get_connection(
                 database,
                 timeout=settings.sqlite_timeout,
                 autocommit=False,
-                uri=read_only,
+                uri=use_uri,
             )
         ) as connection:
             # SQLite's context manager commits on success and rolls back on
@@ -63,6 +52,7 @@ def get_connection(
 def check_health(db_name: DatabasePath = None) -> None:
     """Probe the products table without creating a missing database."""
     with get_connection(db_name, read_only=True) as connection:
+        ensure_current(connection)
         connection.execute("SELECT id FROM products LIMIT 1").fetchone()
 
 
@@ -75,17 +65,9 @@ def _product_from_row(row: tuple[int, str, float]) -> Product:
 
 
 def create_table(db_name: DatabasePath = None) -> None:
-    """Create the products table if it does not exist."""
+    """Initialize empty storage; require explicit upgrades for existing schemas."""
     with get_connection(db_name) as connection:
-        connection.execute(
-            """
-            CREATE TABLE IF NOT EXISTS products (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL UNIQUE,
-                price REAL NOT NULL
-            )
-            """
-        )
+        initialize_schema(connection)
 
 
 def create_product(name: str, price: float, db_name: DatabasePath = None) -> int:

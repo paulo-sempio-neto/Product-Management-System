@@ -18,6 +18,9 @@ files = [
     "database.py",
     "main.py",
     "product_service.py",
+    "persistence.py",
+    "repositories.py",
+    "migrations.py",
     "schemas",
 ]
 python_version = "3.14"
@@ -39,6 +42,9 @@ source = [
     "constants",
     "database",
     "product_service",
+    "persistence",
+    "repositories",
+    "migrations",
     "schemas",
 ]
 

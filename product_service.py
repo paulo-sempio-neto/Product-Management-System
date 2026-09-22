@@ -3,10 +3,14 @@ import unicodedata
 from collections.abc import Callable, Sequence
 from functools import wraps
 
-import database
-
-Product = database.Product
-DatabasePath = database.DatabasePath
+from persistence import (
+    DatabaseDuplicateError,
+    DatabaseError,
+    DatabasePath,
+    ProductRepository,
+)
+from persistence import Product as Product
+from repositories import get_repository
 
 
 class ProductServiceError(Exception):
@@ -34,9 +38,9 @@ def _translate_database_errors[**P, T](function: Callable[P, T]) -> Callable[P, 
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
         try:
             return function(*args, **kwargs)
-        except database.DatabaseDuplicateError as exc:
+        except DatabaseDuplicateError as exc:
             raise DuplicateProductError from exc
-        except database.DatabaseError as exc:
+        except DatabaseError as exc:
             raise ProductPersistenceError from exc
 
     return wrapper
@@ -68,13 +72,17 @@ def validate_price(price: object) -> float:
 
 
 @_translate_database_errors
-def initialize_products(db_name: DatabasePath = None) -> None:
-    database.create_table(db_name)
+def initialize_products(
+    db_name: DatabasePath = None, *, repository: ProductRepository | None = None
+) -> None:
+    _repository(db_name, repository).initialize()
 
 
 @_translate_database_errors
-def check_product_storage(db_name: DatabasePath = None) -> None:
-    database.check_health(db_name)
+def check_product_storage(
+    db_name: DatabasePath = None, *, repository: ProductRepository | None = None
+) -> None:
+    _repository(db_name, repository).check_health()
 
 
 @_translate_database_errors
@@ -82,17 +90,19 @@ def create_product(
     name: str,
     price: object,
     db_name: DatabasePath = None,
+    *,
+    repository: ProductRepository | None = None,
 ) -> Product:
     normalized_name = normalize_product_name(name)
     normalized_price = validate_price(price)
 
-    if database.find_product_by_name(normalized_name, db_name) is not None:
+    storage = _repository(db_name, repository)
+    if storage.find_by_name(normalized_name) is not None:
         raise DuplicateProductError
 
-    product_id = database.create_product(
+    product_id = storage.create(
         normalized_name,
         normalized_price,
-        db_name,
     )
     return {
         "id": product_id,
@@ -102,13 +112,20 @@ def create_product(
 
 
 @_translate_database_errors
-def list_products(db_name: DatabasePath = None) -> list[Product]:
-    return database.load_products(db_name)
+def list_products(
+    db_name: DatabasePath = None, *, repository: ProductRepository | None = None
+) -> list[Product]:
+    return _repository(db_name, repository).list_products()
 
 
 @_translate_database_errors
-def get_product(product_id: int, db_name: DatabasePath = None) -> Product:
-    product = database.find_product_by_id(product_id, db_name)
+def get_product(
+    product_id: int,
+    db_name: DatabasePath = None,
+    *,
+    repository: ProductRepository | None = None,
+) -> Product:
+    product = _repository(db_name, repository).get(product_id)
     if product is None:
         raise ProductNotFoundError
     return product
@@ -120,23 +137,25 @@ def update_product(
     name: str,
     price: object,
     db_name: DatabasePath = None,
+    *,
+    repository: ProductRepository | None = None,
 ) -> Product:
-    get_product(product_id, db_name)
+    storage = _repository(db_name, repository)
+    get_product(product_id, repository=storage)
     normalized_name = normalize_product_name(name)
     normalized_price = validate_price(price)
 
-    product_with_same_name = database.find_product_by_name(normalized_name, db_name)
+    product_with_same_name = storage.find_by_name(normalized_name)
     if (
         product_with_same_name is not None
         and product_with_same_name["id"] != product_id
     ):
         raise DuplicateProductError
 
-    updated = database.update_product(
+    updated = storage.update(
         product_id,
         normalized_name,
         normalized_price,
-        db_name,
     )
     if not updated:
         raise ProductNotFoundError
@@ -151,9 +170,12 @@ def update_product(
 def delete_product(
     product_id: int,
     db_name: DatabasePath = None,
+    *,
+    repository: ProductRepository | None = None,
 ) -> Product:
-    product = get_product(product_id, db_name)
-    if not database.delete_product(product_id, db_name):
+    storage = _repository(db_name, repository)
+    product = get_product(product_id, repository=storage)
+    if not storage.delete(product_id):
         raise ProductNotFoundError
     return product
 
@@ -162,9 +184,11 @@ def delete_product(
 def search_products(
     partial_name: str,
     db_name: DatabasePath = None,
+    *,
+    repository: ProductRepository | None = None,
 ) -> list[Product]:
     normalized_partial_name = _normalize_for_search(partial_name)
-    products = database.load_products(db_name)
+    products = _repository(db_name, repository).list_products()
     return [
         product
         for product in products
@@ -184,6 +208,16 @@ def filter_products_by_minimum_price(
 ) -> list[Product]:
     normalized_price = validate_price(minimum_price)
     return [product for product in products if product["price"] >= normalized_price]
+
+
+def _repository(
+    db_name: DatabasePath, repository: ProductRepository | None
+) -> ProductRepository:
+    if repository is not None:
+        if db_name is not None:
+            raise ValueError("Pass either db_name or repository, not both")
+        return repository
+    return get_repository(db_name)
 
 
 def _normalize_for_search(value: str) -> str:
