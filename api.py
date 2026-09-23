@@ -2,7 +2,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Annotated, cast
 
-from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query, Request
 
 from api_errors import register_error_handlers
 from config import Settings, get_settings
@@ -10,12 +10,13 @@ from persistence import ProductRepository
 from product_service import (
     DuplicateProductError,
     Product,
+    ProductListPage,
     ProductNotFoundError,
     ProductPersistenceError,
     ProductValidationError,
     check_product_storage,
     initialize_products,
-    list_products,
+    list_products_page,
 )
 from product_service import (
     create_product as create_product_service,
@@ -34,7 +35,12 @@ from product_service import (
 )
 from repositories import get_repository
 from schemas.error import ErrorResponse
-from schemas.product import ProductCreate, ProductResponse, ProductUpdate
+from schemas.product import (
+    ProductCreate,
+    ProductListResponse,
+    ProductResponse,
+    ProductUpdate,
+)
 
 router = APIRouter()
 
@@ -108,10 +114,23 @@ def root() -> dict[str, str]:
     return {"message": "Bem-vindo à API de Produtos!"}
 
 
-@router.get("/products", response_model=list[ProductResponse], tags=["products"])
-def list_all_products(repository: ProductStorage) -> list[Product]:
-    """Retorna todos os produtos"""
-    return list_products(repository=repository)
+@router.get("/products", response_model=ProductListResponse, tags=["products"])
+def list_all_products(
+    repository: ProductStorage,
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=100),
+    name: str | None = None,
+) -> ProductListPage:
+    """Retorna produtos com paginação e filtro opcional por nome."""
+    try:
+        return list_products_page(
+            page=page,
+            limit=limit,
+            name=name,
+            repository=repository,
+        )
+    except ProductValidationError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @router.get(

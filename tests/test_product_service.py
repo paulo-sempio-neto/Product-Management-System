@@ -117,3 +117,26 @@ def test_price_reports_use_shared_validation():
     assert product_service.filter_products_by_minimum_price(products, 15.0) == [
         products[1]
     ]
+
+
+def test_list_products_page_validates_pagination(service_db):
+    for name, price in (("A", 1), ("B", 2), ("C", 3)):
+        product_service.create_product(name, price, service_db)
+
+    assert product_service.list_products_page(
+        service_db, page=2, limit=2, name=" "
+    ) == {
+        "items": [{"id": 3, "name": "C", "price": Decimal("3.00")}],
+        "page": 2,
+        "limit": 2,
+        "total": 3,
+    }
+
+
+@pytest.mark.parametrize(
+    ("page", "limit"),
+    [(0, 20), (1, 0), (1, 101), (True, 20), (1, False)],
+)
+def test_list_products_page_rejects_invalid_pagination(service_db, page, limit):
+    with pytest.raises(product_service.ProductValidationError):
+        product_service.list_products_page(service_db, page=page, limit=limit)

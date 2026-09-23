@@ -302,6 +302,16 @@ sanitized `503`. It neither creates a missing database nor verifies write access
 Startup initializes only empty storage. Existing CRUD paths, success payloads,
 and error status codes remain.
 
+`GET /products` supports paginated listing and an optional name filter:
+
+```text
+GET /products?page=1&limit=20&name=ar
+```
+
+The response is an object with `items`, `page`, `limit`, and `total`. The legacy
+`GET /products/search/?name=ar` route remains available and continues returning a
+plain product list for compatibility.
+
 Error responses retain `detail` and add `error.code`, for example:
 
 ```json
@@ -326,12 +336,12 @@ transactional schema upgrades are described in the
 [migration runbook](docs/database-evolution.md). Startup never upgrades legacy data.
 
 The application remains unauthenticated: callers can access all CRUD operations.
-Do not expose it to untrusted clients yet. Listing and name search remain
-unpaginated, and request-body limits and rate limiting are not implemented.
-Those abuse protections need a separate compatibility and deployment design;
-disabling API docs is not access control. SQLite still serializes writers, and
-multi-step service operations are not a single transaction or protected by
-optimistic locking. These are explicit limits of the current portfolio baseline.
+Do not expose it to untrusted clients yet. Product listing is paginated, but
+request-body limits and rate limiting are not implemented. Those abuse protections
+need a separate compatibility and deployment design; disabling API docs is not
+access control. SQLite still serializes writers, and multi-step service operations
+are not a single transaction or protected by optimistic locking. These are
+explicit limits of the current portfolio baseline.
 
 ## Container Deployment
 

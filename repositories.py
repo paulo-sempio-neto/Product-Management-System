@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 import database
 from config import Settings, get_settings
-from persistence import DatabasePath, Product, ProductRepository
+from persistence import DatabasePath, Product, ProductPage, ProductRepository
 
 
 @dataclass(frozen=True)
@@ -20,6 +20,17 @@ class SQLiteProductRepository:
 
     def list_products(self) -> list[Product]:
         return database.load_products(self.database_path, settings=self.settings)
+
+    def list_products_page(
+        self, *, limit: int, offset: int, name_filter: str | None = None
+    ) -> ProductPage:
+        return database.load_products_page(
+            limit=limit,
+            offset=offset,
+            name_filter=name_filter,
+            db_name=self.database_path,
+            settings=self.settings,
+        )
 
     def get(self, product_id: int) -> Product | None:
         return database.find_product_by_id(

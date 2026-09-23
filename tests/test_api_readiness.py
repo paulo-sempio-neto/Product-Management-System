@@ -69,7 +69,12 @@ def test_invalid_price_is_rejected_without_echoing_input(api_client, price):
     assert response.json()["error"]["code"] == "validation_error"
     for issue in response.json()["detail"]:
         assert set(issue) == {"loc", "msg", "type"}
-    assert api_client.get("/products").json() == []
+    assert api_client.get("/products").json() == {
+        "items": [],
+        "page": 1,
+        "limit": 20,
+        "total": 0,
+    }
 
 
 def test_validation_does_not_echo_secret_input(api_client):
@@ -99,7 +104,12 @@ def test_sql_injection_payload_is_stored_as_data(api_client):
     response = api_client.post("/products", json={"name": name, "price": 1})
     assert response.status_code == 201
     assert response.json()["name"] == name
-    assert api_client.get("/products").json() == [response.json()]
+    assert api_client.get("/products").json() == {
+        "items": [response.json()],
+        "page": 1,
+        "limit": 20,
+        "total": 1,
+    }
     assert api_client.get("/health").status_code == 200
 
 
@@ -114,7 +124,7 @@ def test_internal_failures_are_sanitized(api_app, monkeypatch, unexpected):
         error = RuntimeError if unexpected else product_service.ProductPersistenceError
         raise error("secret database path and credentials")
 
-    monkeypatch.setattr(api, "list_products", fail_read)
+    monkeypatch.setattr(api, "list_products_page", fail_read)
     with TestClient(api_app, raise_server_exceptions=False) as client:
         response = client.get("/products")
     assert response.status_code == 500

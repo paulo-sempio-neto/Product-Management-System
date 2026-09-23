@@ -36,6 +36,10 @@ def test_configured_repository_keeps_path_and_timeout(tmp_path, monkeypatch):
     assert storage.find_by_name("First") == storage.get(product_id)
     assert storage.update(product_id, "Updated", 200)
     assert len(storage.list_products()) == 1
+    assert storage.list_products_page(limit=10, offset=0) == {
+        "items": [{"id": product_id, "name": "Updated", "price": Decimal("2.00")}],
+        "total": 1,
+    }
     storage.check_health()
     assert storage.delete(product_id)
     with database.get_connection(settings=settings) as connection:
@@ -80,9 +84,8 @@ def test_application_uses_injected_storage_for_startup_and_requests(
 ):
     target = tmp_path / "unused.db"
     storage = create_autospec(ProductRepository, instance=True, spec_set=True)
-    storage.list_products.return_value = [
-        {"id": 42, "name": "Injected", "price": Decimal("2.00")}
-    ]
+    product = {"id": 42, "name": "Injected", "price": Decimal("2.00")}
+    storage.list_products_page.return_value = {"items": [product], "total": 1}
 
     def forbid_default_storage(**_kwargs):
         pytest.fail("Explicit injection must not create the configured backend")
@@ -94,7 +97,12 @@ def test_application_uses_injected_storage_for_startup_and_requests(
     storage.initialize.assert_not_called()
     with TestClient(application) as client:
         storage.initialize.assert_called_once_with()
-        assert client.get("/products").json() == storage.list_products.return_value
+        assert client.get("/products").json() == {
+            "items": [product],
+            "page": 1,
+            "limit": 20,
+            "total": 1,
+        }
         assert client.get("/health").json() == {"status": "ok"}
         storage.check_health.assert_called_once_with()
         assert client.get("/live").status_code == 200
@@ -115,7 +123,12 @@ def test_independent_applications_do_not_share_storage_or_docs(tmp_path):
             first.post("/products", json={"name": "Only first", "price": 1}).status_code
             == 201
         )
-        assert len(first.get("/products").json()) == 1
-        assert second.get("/products").json() == []
+        assert len(first.get("/products").json()["items"]) == 1
+        assert second.get("/products").json() == {
+            "items": [],
+            "page": 1,
+            "limit": 20,
+            "total": 0,
+        }
         assert first.get("/openapi.json").status_code == 200
         assert second.get("/openapi.json").status_code == 404

@@ -26,7 +26,17 @@ def test_service_can_use_an_independent_repository(injected_repository):
     storage.get.return_value = product
     assert product_service.get_product(7, repository=storage) == product
     storage.list_products.return_value = [product]
+    storage.list_products_page.return_value = {"items": [product], "total": 1}
     assert product_service.list_products(repository=storage) == [product]
+    assert product_service.list_products_page(repository=storage) == {
+        "items": [product],
+        "page": 1,
+        "limit": 20,
+        "total": 1,
+    }
+    storage.list_products_page.assert_called_once_with(
+        limit=20, offset=0, name_filter=None
+    )
     assert product_service.search_products("CAFE", repository=storage) == [product]
     storage.update.return_value = True
     updated = product_service.update_product(7, " New ", 2, repository=storage)
@@ -78,6 +88,17 @@ def test_adapter_obeys_repository_contract(product_repository):
     first = storage.create("First", 123)
     second = storage.create("first", 200)
     assert [p["id"] for p in storage.list_products()] == [first, second]
+    assert storage.list_products_page(limit=1, offset=1) == {
+        "items": [{"id": second, "name": "first", "price": Decimal("2.00")}],
+        "total": 2,
+    }
+    assert storage.list_products_page(limit=10, offset=0, name_filter="FIRST") == {
+        "items": [
+            {"id": first, "name": "First", "price": Decimal("1.23")},
+            {"id": second, "name": "first", "price": Decimal("2.00")},
+        ],
+        "total": 2,
+    }
     assert storage.find_by_name("First") == storage.get(first)
     assert storage.find_by_name("FIRST") is None
     with pytest.raises(DatabaseDuplicateError):

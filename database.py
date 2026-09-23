@@ -1,4 +1,5 @@
 import sqlite3
+import unicodedata
 from collections.abc import Iterator
 from contextlib import closing, contextmanager
 from decimal import Decimal
@@ -12,6 +13,7 @@ from persistence import DatabaseError as DatabaseError
 from persistence import DatabaseIntegrityError as DatabaseIntegrityError
 from persistence import DatabasePath as DatabasePath
 from persistence import Product as Product
+from persistence import ProductPage as ProductPage
 
 
 @contextmanager
@@ -41,6 +43,9 @@ def get_connection(
                 uri=use_uri,
             )
         ) as connection:
+            connection.create_function(
+                "normalize_for_search", 1, _normalize_for_search, deterministic=True
+            )
             # SQLite's context manager commits on success and rolls back on
             # any exception, including non-SQLite exceptions. closing owns cleanup.
             with connection:
@@ -168,6 +173,42 @@ def load_products(
     return [_product_from_row(row) for row in rows]
 
 
+def load_products_page(
+    *,
+    limit: int,
+    offset: int,
+    name_filter: str | None = None,
+    db_name: DatabasePath = None,
+    settings: Settings | None = None,
+) -> ProductPage:
+    """Return one deterministic page and total count using SQL limits."""
+    where_clause = ""
+    parameters: list[object] = []
+    if name_filter is not None:
+        where_clause = "WHERE normalize_for_search(name) LIKE ?"
+        parameters.append(f"%{_normalize_for_search(name_filter)}%")
+
+    with get_connection(db_name, settings=settings) as connection:
+        total = cast(
+            int,
+            connection.execute(
+                f"SELECT COUNT(*) FROM products {where_clause}",
+                parameters,
+            ).fetchone()[0],
+        )
+        rows = connection.execute(
+            f"""
+            SELECT id, name, price_cents
+            FROM products
+            {where_clause}
+            ORDER BY id
+            LIMIT ? OFFSET ?
+            """,
+            [*parameters, limit, offset],
+        ).fetchall()
+    return {"items": [_product_from_row(row) for row in rows], "total": total}
+
+
 def save_products(products: list[Product], db_name: DatabasePath = None) -> None:
     """Replace every stored product with the supplied product list."""
     with get_connection(db_name) as connection:
@@ -211,3 +252,12 @@ def find_product_by_name(
             (name,),
         ).fetchone()
     return None if row is None else _product_from_row(row)
+
+
+def _normalize_for_search(value: str) -> str:
+    return (
+        unicodedata.normalize("NFKD", value)
+        .encode("ascii", "ignore")
+        .decode("ascii")
+        .lower()
+    )

@@ -59,14 +59,40 @@ def test_root(api_client):
 def test_api_client_starts_with_empty_database(api_client):
     response = api_client.get("/products")
     assert response.status_code == 200
-    assert response.json() == []
+    assert response.json() == {"items": [], "page": 1, "limit": 20, "total": 0}
 
 
 def test_list_products(seeded_api_client):
     response = seeded_api_client.get("/products")
     assert response.status_code == 200
-    assert len(response.json()) == 3
-    assert response.json()[0]["name"] == "Arroz"
+    body = response.json()
+    assert body["page"] == 1
+    assert body["limit"] == 20
+    assert body["total"] == 3
+    assert len(body["items"]) == 3
+    assert body["items"][0]["name"] == "Arroz"
+
+
+def test_list_products_with_pagination(seeded_api_client):
+    response = seeded_api_client.get("/products?page=2&limit=2")
+    assert response.status_code == 200
+    assert response.json() == {
+        "items": [{"id": 3, "name": "Macarrão", "price": 5.0}],
+        "page": 2,
+        "limit": 2,
+        "total": 3,
+    }
+
+
+def test_list_products_with_name_filter_and_pagination(seeded_api_client):
+    response = seeded_api_client.get("/products?name=AR&page=1&limit=1")
+    assert response.status_code == 200
+    assert response.json() == {
+        "items": [{"id": 1, "name": "Arroz", "price": 12.0}],
+        "page": 1,
+        "limit": 1,
+        "total": 2,
+    }
 
 
 def test_create_product(api_client):

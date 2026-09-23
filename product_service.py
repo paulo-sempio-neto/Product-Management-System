@@ -2,6 +2,7 @@ import unicodedata
 from collections.abc import Callable, Sequence
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from functools import wraps
+from typing import TypedDict
 
 from persistence import (
     DatabaseDuplicateError,
@@ -14,6 +15,16 @@ from repositories import get_repository
 
 PRICE_QUANTUM = Decimal("0.01")
 MAX_PRICE_CENTS = 2**63 - 1
+DEFAULT_PAGE = 1
+DEFAULT_PAGE_LIMIT = 20
+MAX_PAGE_LIMIT = 100
+
+
+class ProductListPage(TypedDict):
+    items: list[Product]
+    page: int
+    limit: int
+    total: int
 
 
 class ProductServiceError(Exception):
@@ -156,6 +167,34 @@ def list_products(
 
 
 @_translate_database_errors
+def list_products_page(
+    db_name: DatabasePath = None,
+    *,
+    page: int = DEFAULT_PAGE,
+    limit: int = DEFAULT_PAGE_LIMIT,
+    name: str | None = None,
+    repository: ProductRepository | None = None,
+) -> ProductListPage:
+    page = _validate_positive_int(page, "Page")
+    limit = _validate_positive_int(limit, "Limit")
+    if limit > MAX_PAGE_LIMIT:
+        raise ProductValidationError(f"Limit must be at most {MAX_PAGE_LIMIT}")
+
+    name_filter = _normalize_optional_filter(name)
+    result = _repository(db_name, repository).list_products_page(
+        limit=limit,
+        offset=(page - 1) * limit,
+        name_filter=name_filter,
+    )
+    return {
+        "items": result["items"],
+        "page": page,
+        "limit": limit,
+        "total": result["total"],
+    }
+
+
+@_translate_database_errors
 def get_product(
     product_id: int,
     db_name: DatabasePath = None,
@@ -266,3 +305,18 @@ def _normalize_for_search(value: str) -> str:
         .decode("ascii")
         .lower()
     )
+
+
+def _validate_positive_int(value: int, label: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ProductValidationError(f"{label} must be an integer")
+    if value <= 0:
+        raise ProductValidationError(f"{label} must be greater than zero")
+    return value
+
+
+def _normalize_optional_filter(value: str | None) -> str | None:
+    if value is None:
+        return None
+    normalized = value.strip()
+    return normalized or None

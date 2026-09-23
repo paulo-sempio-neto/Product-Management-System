@@ -52,3 +52,10 @@ class ProductResponse(BaseModel):
     @field_serializer("price", when_used="json")
     def serialize_price(self, value: Decimal) -> float:
         return float(value)
+
+
+class ProductListResponse(BaseModel):
+    items: list[ProductResponse]
+    page: int
+    limit: int
+    total: int

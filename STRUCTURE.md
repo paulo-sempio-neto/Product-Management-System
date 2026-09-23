@@ -75,7 +75,7 @@ the tracked repository layout.
 | `tests/test_migrations.py` | Exercises upgrades, constraint enforcement, refusal paths, and rollback. |
 | `tests/test_repository_contract.py` | Verifies service injection and the backend-parametrized repository contract. |
 | `tests/test_composition.py` | Verifies backend selection, configuration snapshots, repository injection, and independent application instances. |
-| `product_service.py` | Implements shared product normalization, validation, duplicate checks, missing-product handling, CRUD coordination, search, and price reports. |
+| `product_service.py` | Implements shared product normalization, validation, duplicate checks, missing-product handling, CRUD coordination, paginated listing, search, and price reports. |
 | `constants.py` | Stores CLI menu labels, prompts, validation messages, success messages, and error messages in Portuguese. |
 | `schemas/product.py` | Defines the Pydantic creation, update, and response models used by the API. |
 | `schemas/__init__.py` | Marks `schemas` as a Python package. |
@@ -125,6 +125,9 @@ for that application instance and injected into routes through a dependency.
 Importing `api.py` does not access SQLite. Fresh storage is initialized when
 the FastAPI lifespan starts; legacy storage requires an explicit migration first.
 Routes call the product service through the unchanged public functions.
+`GET /products` returns a paginated envelope with `items`, `page`, `limit`, and
+`total`, and accepts an optional `name` filter. The compatibility
+`/products/search/` route still returns a plain list.
 
 ### Automated Tests
 
@@ -236,7 +239,9 @@ exception handlers. Existing `detail` responses remain available with an added
 The `/live` route verifies that the HTTP process is serving without using storage.
 The `/health` route calls the service, which calls a read-only database readiness
 probe. The database context owns commit/rollback and connection closure. All SQL
-for CRUD stays in `database.py`, with versioned DDL in `migrations.py`. Write row counts detect
+for CRUD and paginated listing stays in `database.py`, with versioned DDL in
+`migrations.py`. Listing pages use SQL `COUNT`, `LIMIT`, and `OFFSET` instead of
+loading every product when the API only needs one page. Write row counts detect
 products removed after a service lookup, and only unique-name failures translate
 to duplicate-product errors.
 
