@@ -15,8 +15,13 @@ coordinates persistence through `ProductRepository`, with a default SQLite adapt
 
 ```text
 Product-Management-System/
+├── .github/
+│   └── workflows/
+│       └── ci.yml
 ├── assets/
 │   └── product-management-demo.gif
+├── docs/
+│   └── database-evolution.md
 ├── schemas/
 │   ├── __init__.py
 │   ├── error.py
@@ -25,29 +30,37 @@ Product-Management-System/
 │   ├── conftest.py
 │   ├── test_api.py
 │   ├── test_api_readiness.py
+│   ├── test_app_smoke.py
 │   ├── test_cli.py
 │   ├── test_cli_input.py
+│   ├── test_composition.py
 │   ├── test_config.py
 │   ├── test_database_reliability.py
+│   ├── test_migrations.py
 │   ├── test_product_service.py
 │   ├── test_product_update.py
-│   └── test_products.py
-├── .gitignore
+│   ├── test_products.py
+│   └── test_repository_contract.py
 ├── .env.example
-├── .github/workflows/ci.yml
+├── .gitignore
 ├── api.py
 ├── api_errors.py
 ├── cli.py
 ├── cli_input.py
-├── constants.py
+├── compose.yaml
 ├── config.py
+├── constants.py
 ├── database.py
+├── Dockerfile
 ├── main.py
+├── migrations.py
+├── persistence.py
 ├── product_service.py
 ├── pyproject.toml
 ├── README.md
-├── requirements.txt
+├── repositories.py
 ├── requirements-dev.txt
+├── requirements.txt
 └── STRUCTURE.md
 ```
 
@@ -217,7 +230,7 @@ http://127.0.0.1:8000/docs
 |---|---|
 | `pyproject.toml` | Configures Ruff, strict mypy checking for application modules, pytest discovery, and coverage reporting. |
 | `requirements-dev.txt` | Pins Ruff 0.16.8, mypy 2.3.1, and pytest-cov 7.1.0 while including `requirements.txt`. |
-| `.github/workflows/ci.yml` | Installs development dependencies, then runs formatting, linting, type checks, and pytest coverage on pushes and pull requests. |
+| `.github/workflows/ci.yml` | Installs development dependencies, then runs formatting, dependency checks, linting, type checks, smoke tests, pytest coverage, and Docker image builds on pushes and pull requests. |
 
 Ruff checks formatting and common Python defects. Mypy strictly checks the
 application modules. Pytest-cov reports line and branch coverage so coverage

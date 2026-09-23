@@ -12,6 +12,12 @@ This is a learning and portfolio project for practicing backend development,
 database integration, CRUD operations, validation, project organization, and
 automated testing. It is not presented as a production-ready system.
 
+The current version focuses on backend engineering fundamentals that matter in
+real maintenance work: shared business rules between API and CLI, explicit schema
+migrations, predictable REST contracts, test coverage gates, Docker delivery,
+integer-cent money handling, paginated listing, and optimistic concurrency
+control for product updates.
+
 ## 🎬 Quick Demo
 
 <p align="center">
@@ -28,14 +34,16 @@ automated testing. It is not presented as a production-ready system.
 - REST API built with FastAPI
 - Interactive terminal interface in Portuguese
 - SQLite persistence
-- Exact ID lookup and partial-name search
+- Exact ID lookup, paginated listing, and partial-name search
 - CLI reports for average price and products above a minimum price
 - Request validation with Pydantic
 - Validated environment configuration and explicit SQLite backend selection
 - Repository boundary with an SQLite adapter
 - Versioned, explicit SQLite schema migrations
+- Integer-cent storage for monetary values, while keeping API/CLI decimal prices
+- Optimistic concurrency control with product versions and `409 Conflict`
 - Production-shaped Docker and Docker Compose delivery with persistent storage
-- Automated tests with Pytest
+- Automated tests with Pytest, CI quality gates, and minimum coverage enforcement
 
 ## 🛠 Technologies
 
@@ -60,18 +68,28 @@ documentation and technical descriptions are written in English.
 
 ```text
 Product-Management-System/
+├── .github/workflows/      # CI checks
 ├── assets/                 # Demo assets
-├── schemas/                # Pydantic API models
-├── tests/                  # Automated database and API tests
-├── api.py                  # FastAPI application and routes
+├── docs/                   # Database migration and operations notes
+├── schemas/                # Pydantic API and error models
+├── tests/                  # Automated API, service, CLI, database, and CI tests
+├── api.py                  # FastAPI application factory and routes
+├── api_errors.py           # HTTP error handlers
 ├── cli.py                  # Interactive terminal workflows
 ├── cli_input.py            # Terminal input parsing and validation
 ├── constants.py            # CLI labels, prompts, and messages
+├── config.py               # Validated runtime settings
 ├── database.py             # SQLite connection and data operations
 ├── main.py                 # CLI entry point
+├── migrations.py           # Explicit SQLite schema migrations
+├── persistence.py          # Repository protocol and neutral persistence types
 ├── product_service.py      # Shared product business rules
-├── requirements.txt        # Pinned direct dependencies
-├── README.md
+├── repositories.py         # Repository composition and SQLite adapter
+├── Dockerfile              # Production API image
+├── compose.yaml            # Local production-shaped container deployment
+├── pyproject.toml          # Ruff, mypy, pytest, and coverage configuration
+├── requirements.txt        # Pinned runtime dependencies
+├── requirements-dev.txt    # Pinned development and quality dependencies
 └── STRUCTURE.md            # Detailed architecture documentation
 ```
 
@@ -244,9 +262,10 @@ python -B -m pytest --cov --cov-report=term-missing
 ```
 
 Coverage is used to identify meaningful gaps, not as a standalone percentage
-target. Further coverage should focus on complete CLI menu workflows and
-concurrent product operations. Rollback, configuration, API error handling,
-and terminal-input validation have dedicated regression tests.
+target. CI currently enforces a minimum of 75%. Further coverage should focus on
+complete CLI menu workflows and concurrent product operations. Rollback,
+configuration, API error handling, and terminal-input validation have dedicated
+regression tests.
 
 ### Quality Checks
 
@@ -257,8 +276,9 @@ python -m mypy
 ```
 
 Run `python -m ruff format .` to apply formatting. GitHub Actions runs the
-format, lint, strict type-check, and pytest-with-coverage commands on every
-push and pull request.
+format, dependency compatibility, lint, strict type-check, smoke test, full
+pytest-with-coverage, and Docker image build checks on every push and pull
+request.
 
 ## Configuration and Operational Behavior
 
