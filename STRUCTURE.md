@@ -11,7 +11,7 @@ interfaces:
 Both interfaces use the same product service for business rules. The service
 coordinates persistence through `ProductRepository`, with a default SQLite adapter.
 
-## Repository Layout
+## Repository Layout Overview
 
 ```text
 Product-Management-System/
@@ -50,6 +50,10 @@ Product-Management-System/
 ├── requirements-dev.txt
 └── STRUCTURE.md
 ```
+
+The tree is a high-level view; the responsibility table below also covers the
+configuration, repository, migration, Docker, and CI files that complete the
+current architecture.
 
 SQLite database files may be created locally during application or test
 execution. They are runtime data and are ignored by Git, so they are not part of

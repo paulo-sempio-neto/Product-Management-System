@@ -31,6 +31,10 @@ automated testing. It is not presented as a production-ready system.
 - Exact ID lookup and partial-name search
 - CLI reports for average price and products above a minimum price
 - Request validation with Pydantic
+- Validated environment configuration and explicit SQLite backend selection
+- Repository boundary with an SQLite adapter
+- Versioned, explicit SQLite schema migrations
+- Production-shaped Docker and Docker Compose delivery with persistent storage
 - Automated tests with Pytest
 
 ## 🛠 Technologies
@@ -42,6 +46,7 @@ automated testing. It is not presented as a production-ready system.
 - Uvicorn
 - Pytest
 - HTTPX for API tests
+- Docker and Docker Compose for the local production-shaped deployment
 
 The current development baseline uses **Python 3.14.3**. Use Python 3.14.3 to
 reproduce the verified local environment.
@@ -70,8 +75,9 @@ Product-Management-System/
 └── STRUCTURE.md            # Detailed architecture documentation
 ```
 
-See [STRUCTURE.md](STRUCTURE.md) for the current module responsibilities and
-data flow.
+This is a high-level view. See [STRUCTURE.md](STRUCTURE.md) for the complete
+module responsibilities, including configuration, migrations, repository
+composition, Docker delivery, and data flow.
 
 ## ⚙️ Setup
 
@@ -116,8 +122,9 @@ With `.venv` activated:
 python main.py
 ```
 
-The terminal menu provides the currently implemented product-management
-operations.
+The terminal menu initializes only new, empty storage. If `produtos.db` is a
+legacy database, follow the explicit upgrade procedure in
+[Database evolution](docs/database-evolution.md) before starting the CLI.
 
 ## 🌐 Run the API
 
@@ -133,7 +140,7 @@ The API is available at:
 http://127.0.0.1:8000
 ```
 
-FastAPI's interactive documentation is available at:
+With the development defaults, FastAPI's interactive documentation is available at:
 
 ```text
 http://127.0.0.1:8000/docs
@@ -158,7 +165,8 @@ python -B -m pytest -q -p no:cacheprovider
 ```
 
 The test suite uses temporary SQLite databases and covers API behavior, shared
-product rules, CLI workflows, and database lookups.
+product rules, CLI workflows, configuration, repository composition, migrations,
+and SQLite reliability behavior.
 
 ## 📚 Development Goals
 
@@ -179,9 +187,8 @@ This project is intended to demonstrate and improve:
 - Add authentication and authorization
 - Add product categories and inventory information
 - Create a frontend interface
-- Add Docker support
-- Add deployment automation (CI quality checks are already configured)
-- Deploy the application
+- Publish the existing container image and automate deployment
+- Add production infrastructure such as TLS termination and monitoring
 
 ## 👤 Author
 
@@ -206,7 +213,8 @@ flowchart TD
 ```
 
 The API owns HTTP concerns, the CLI owns terminal interaction, the service
-layer owns product rules, and the database layer owns SQLite operations.
+layer owns product rules, the repository boundary owns storage selection, and the
+SQLite adapter/database layer owns SQLite operations.
 
 ### Local Development
 
