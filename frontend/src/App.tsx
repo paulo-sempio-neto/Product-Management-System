@@ -228,98 +228,158 @@ export default function App() {
   }
 
   return (
-    <main className="app-shell">
-      <section className="page-header">
-        <p className="eyebrow">Product Management System</p>
-        <div>
-          <h1>Produtos</h1>
-          <p>
-            Listagem inicial consumindo a API FastAPI com busca por nome e
-            paginação.
-          </p>
+    <div className="app-shell">
+      <header className="page-header">
+        <div className="brand-row">
+          <span className="brand-mark" aria-hidden="true">
+            PM
+          </span>
+          <div>
+            <p className="eyebrow">Product Management System</p>
+            <p className="brand-caption">Painel administrativo</p>
+          </div>
         </div>
-      </section>
 
-      <section className="content-card">
-        <ProductForm
-          isSubmitting={isCreating}
-          errorMessage={createErrorMessage}
-          successMessage={createSuccessMessage}
-          onSubmit={handleCreateProduct}
-        />
-      </section>
+        <div className="hero-layout">
+          <div className="hero-copy">
+            <span className="hero-kicker">Catálogo</span>
+            <h1>Gestão de produtos</h1>
+            <p>
+              Cadastre, encontre e mantenha seu catálogo atualizado em uma
+              interface conectada à API FastAPI.
+            </p>
+          </div>
 
-      {editingProduct && (
-        <section className="content-card">
-          <ProductEditForm
-            product={editingProduct}
-            isSubmitting={isUpdating}
-            errorMessage={updateErrorMessage}
-            successMessage={updateSuccessMessage}
-            onCancel={handleCancelEdit}
-            onSubmit={handleUpdateProduct}
+          <div className="dashboard-summary" aria-label="Resumo do catálogo">
+            <div className="summary-item">
+              <strong>{productsPage.total}</strong>
+              <span>produtos</span>
+            </div>
+            <div className="summary-divider" aria-hidden="true" />
+            <div className="summary-item">
+              <strong>{productsPage.page}</strong>
+              <span>página atual</span>
+            </div>
+            <div className="summary-divider" aria-hidden="true" />
+            <div className="summary-item">
+              <strong>{PAGE_SIZE}</strong>
+              <span>itens por página</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main className="dashboard-content">
+        <section className="content-card create-card">
+          <ProductForm
+            isSubmitting={isCreating}
+            errorMessage={createErrorMessage}
+            successMessage={createSuccessMessage}
+            onSubmit={handleCreateProduct}
           />
         </section>
-      )}
 
-      <section className="content-card" aria-busy={isLoading}>
-        <div className="section-heading">
-          <h2>Lista de produtos</h2>
-          <p>Consulte produtos cadastrados com busca por nome e paginação.</p>
-        </div>
-
-        <SearchBar
-          initialValue={searchTerm}
-          isLoading={isLoading}
-          onSearch={handleSearch}
-        />
-
-        {deleteMessage && (
-          <p className="status-message success" role="status">
-            {deleteMessage}
-          </p>
+        {editingProduct && (
+          <section className="content-card edit-card">
+            <ProductEditForm
+              product={editingProduct}
+              isSubmitting={isUpdating}
+              errorMessage={updateErrorMessage}
+              successMessage={updateSuccessMessage}
+              onCancel={handleCancelEdit}
+              onSubmit={handleUpdateProduct}
+            />
+          </section>
         )}
 
-        {deleteErrorMessage && (
-          <p className="status-message error" role="alert">
-            {deleteErrorMessage}
-          </p>
-        )}
+        <section className="content-card list-card" aria-busy={isLoading}>
+          <div className="section-heading section-heading-inline">
+            <div>
+              <span className="section-kicker">Inventário</span>
+              <h2>Produtos cadastrados</h2>
+              <p>Use a busca para localizar rapidamente um item do catálogo.</p>
+            </div>
+            <span className="result-count">
+              {productsPage.total} {productsPage.total === 1 ? "item" : "itens"}
+            </span>
+          </div>
 
-        {isLoading && <p className="status-message">Carregando produtos...</p>}
+          <div className="list-toolbar">
+            <SearchBar
+              initialValue={searchTerm}
+              isLoading={isLoading}
+              onSearch={handleSearch}
+            />
+          </div>
 
-        {errorMessage && !isLoading && (
-          <p className="status-message error" role="alert">
-            {errorMessage}
-          </p>
-        )}
+          <div className="feedback-region" aria-live="polite">
+            {deleteMessage && (
+              <p className="status-message success" role="status">
+                {deleteMessage}
+              </p>
+            )}
 
-        {!isLoading && !errorMessage && productsPage.items.length === 0 && (
-          <p className="status-message">
-            Nenhum produto encontrado
-            {searchTerm ? ` para "${searchTerm}"` : ""}.
-          </p>
-        )}
+            {deleteErrorMessage && (
+              <p className="status-message error" role="alert">
+                {deleteErrorMessage}
+              </p>
+            )}
+          </div>
 
-        {!isLoading && !errorMessage && productsPage.items.length > 0 && (
-          <ProductTable
-            products={productsPage.items}
-            deletingProductId={deletingProductId}
-            onEdit={handleSelectProductToEdit}
-            onDelete={handleDeleteProduct}
-          />
-        )}
+          {isLoading && (
+            <div className="status-message loading-state" role="status">
+              <span className="loading-spinner" aria-hidden="true" />
+              <span>
+                <strong>Carregando produtos</strong>
+                <small>Buscando os dados mais recentes do catálogo...</small>
+              </span>
+            </div>
+          )}
 
-        {!errorMessage && (
-          <Pagination
-            page={productsPage.page}
-            limit={productsPage.limit}
-            total={productsPage.total}
-            isLoading={isLoading}
-            onPageChange={setPage}
-          />
-        )}
-      </section>
-    </main>
+          {errorMessage && !isLoading && (
+            <div className="status-message error state-card" role="alert">
+              <span className="state-icon" aria-hidden="true">
+                !
+              </span>
+              <span>
+                <strong>Não foi possível carregar os produtos</strong>
+                <small>{errorMessage}</small>
+              </span>
+            </div>
+          )}
+
+          {!isLoading && !errorMessage && productsPage.items.length === 0 && (
+            <div className="empty-state">
+              <span className="empty-state-icon" aria-hidden="true" />
+              <h3>Nenhum produto encontrado</h3>
+              <p>
+                {searchTerm
+                  ? `Não encontramos resultados para "${searchTerm}". Tente outro termo.`
+                  : "Cadastre o primeiro produto para começar a organizar seu catálogo."}
+              </p>
+            </div>
+          )}
+
+          {!isLoading && !errorMessage && productsPage.items.length > 0 && (
+            <ProductTable
+              products={productsPage.items}
+              deletingProductId={deletingProductId}
+              onEdit={handleSelectProductToEdit}
+              onDelete={handleDeleteProduct}
+            />
+          )}
+
+          {!errorMessage && (
+            <Pagination
+              page={productsPage.page}
+              limit={productsPage.limit}
+              total={productsPage.total}
+              isLoading={isLoading}
+              onPageChange={setPage}
+            />
+          )}
+        </section>
+      </main>
+    </div>
   );
 }

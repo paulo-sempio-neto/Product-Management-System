@@ -33,15 +33,25 @@ export default function ProductTable({
         <tbody>
           {products.map((product) => (
             <tr key={product.id}>
-              <td>{product.id}</td>
-              <td>{product.name}</td>
-              <td>{currencyFormatter.format(product.price)}</td>
-              <td>{product.version}</td>
-              <td>
+              <td data-label="ID">
+                <span className="product-id">#{product.id}</span>
+              </td>
+              <td data-label="Nome">
+                <strong className="product-name">{product.name}</strong>
+              </td>
+              <td data-label="Preço">
+                <strong className="product-price">
+                  {currencyFormatter.format(product.price)}
+                </strong>
+              </td>
+              <td data-label="Versão">
+                <span className="version-badge">v{product.version}</span>
+              </td>
+              <td data-label="Ações">
                 <div className="table-actions">
                   <button
                     type="button"
-                    className="secondary compact"
+                    className="secondary compact action-button"
                     disabled={deletingProductId === product.id}
                     onClick={() => onEdit(product)}
                   >
@@ -49,7 +59,7 @@ export default function ProductTable({
                   </button>
                   <button
                     type="button"
-                    className="danger compact"
+                    className="danger compact action-button"
                     disabled={deletingProductId === product.id}
                     onClick={() => onDelete(product)}
                   >

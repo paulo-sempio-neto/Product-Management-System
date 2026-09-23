@@ -82,16 +82,17 @@ export default function ProductEditForm({
   return (
     <form className="product-form" onSubmit={handleSubmit}>
       <div className="section-heading">
+        <span className="section-kicker">Edição em andamento</span>
         <h2>Editar produto</h2>
         <p>
-          Editando #{product.id} · versão atual {product.version}. Se outro
-          usuário alterar antes de você salvar, a API retornará conflito.
+          Produto #{product.id} · versão {product.version}. O controle de versão
+          protege o registro contra alterações simultâneas.
         </p>
       </div>
 
       <div className="form-grid">
-        <label>
-          Nome
+        <label className="field-group">
+          <span className="field-label">Nome do produto</span>
           <input
             name="edit-name"
             type="text"
@@ -99,10 +100,11 @@ export default function ProductEditForm({
             disabled={isSubmitting}
             onChange={(event) => setName(event.target.value)}
           />
+          <small>Atualize o nome de exibição do item.</small>
         </label>
 
-        <label>
-          Preço
+        <label className="field-group">
+          <span className="field-label">Preço</span>
           <input
             name="edit-price"
             type="text"
@@ -111,10 +113,18 @@ export default function ProductEditForm({
             disabled={isSubmitting}
             onChange={(event) => setPrice(event.target.value)}
           />
+          <small>Informe até duas casas decimais.</small>
         </label>
 
         <div className="form-actions">
-          <button type="submit" disabled={isSubmitting}>
+          <button
+            type="submit"
+            className={isSubmitting ? "is-loading" : undefined}
+            disabled={isSubmitting}
+          >
+            {isSubmitting && (
+              <span className="button-spinner" aria-hidden="true" />
+            )}
             {isSubmitting ? "Salvando..." : "Salvar edição"}
           </button>
           <button

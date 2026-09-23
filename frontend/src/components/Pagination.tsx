@@ -25,13 +25,17 @@ export default function Pagination({
         disabled={!canGoPrevious || isLoading}
         onClick={() => onPageChange(page - 1)}
       >
-        Página anterior
+        <span aria-hidden="true">←</span> Anterior
       </button>
 
-      <span>
-        Página {page} de {totalPages} · {total} produto
-        {total === 1 ? "" : "s"}
-      </span>
+      <div className="pagination-summary">
+        <strong>
+          Página {page} de {totalPages}
+        </strong>
+        <span>
+          {total} produto{total === 1 ? "" : "s"} no total
+        </span>
+      </div>
 
       <button
         type="button"
@@ -39,7 +43,7 @@ export default function Pagination({
         disabled={!canGoNext || isLoading}
         onClick={() => onPageChange(page + 1)}
       >
-        Próxima página
+        Próxima <span aria-hidden="true">→</span>
       </button>
     </nav>
   );

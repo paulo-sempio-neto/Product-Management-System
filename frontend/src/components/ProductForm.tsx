@@ -72,13 +72,14 @@ export default function ProductForm({
   return (
     <form className="product-form" onSubmit={handleSubmit}>
       <div className="section-heading">
-        <h2>Criar produto</h2>
-        <p>Adicione um produto usando o mesmo contrato da API FastAPI.</p>
+        <span className="section-kicker">Novo cadastro</span>
+        <h2>Adicionar produto</h2>
+        <p>Preencha os dados abaixo para incluir um item no catálogo.</p>
       </div>
 
       <div className="form-grid">
-        <label>
-          Nome
+        <label className="field-group">
+          <span className="field-label">Nome do produto</span>
           <input
             name="name"
             type="text"
@@ -87,10 +88,11 @@ export default function ProductForm({
             disabled={isSubmitting}
             onChange={(event) => setName(event.target.value)}
           />
+          <small>Use um nome curto e fácil de identificar.</small>
         </label>
 
-        <label>
-          Preço
+        <label className="field-group">
+          <span className="field-label">Preço</span>
           <input
             name="price"
             type="text"
@@ -100,9 +102,15 @@ export default function ProductForm({
             disabled={isSubmitting}
             onChange={(event) => setPrice(event.target.value)}
           />
+          <small>Informe até duas casas decimais.</small>
         </label>
 
-        <button type="submit" disabled={isSubmitting}>
+        <button
+          type="submit"
+          className={isSubmitting ? "is-loading" : undefined}
+          disabled={isSubmitting}
+        >
+          {isSubmitting && <span className="button-spinner" aria-hidden="true" />}
           {isSubmitting ? "Salvando..." : "Criar produto"}
         </button>
       </div>

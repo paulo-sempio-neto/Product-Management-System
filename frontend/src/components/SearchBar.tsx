@@ -25,16 +25,21 @@ export default function SearchBar({
 
   return (
     <form className="search-bar" onSubmit={handleSubmit}>
-      <label htmlFor="product-search">Buscar por nome</label>
+      <label htmlFor="product-search" className="field-label">
+        Buscar no catálogo
+      </label>
       <div className="search-row">
-        <input
-          id="product-search"
-          name="product-search"
-          type="search"
-          value={value}
-          placeholder="Ex.: arroz"
-          onChange={(event) => setValue(event.target.value)}
-        />
+        <div className="search-input-wrapper">
+          <span className="search-icon" aria-hidden="true" />
+          <input
+            id="product-search"
+            name="product-search"
+            type="search"
+            value={value}
+            placeholder="Digite o nome de um produto"
+            onChange={(event) => setValue(event.target.value)}
+          />
+        </div>
         <button type="submit" disabled={isLoading}>
           Buscar
         </button>
