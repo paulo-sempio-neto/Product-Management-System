@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 
-import { listProducts } from "./api/products";
+import { createProduct, listProducts } from "./api/products";
 import Pagination from "./components/Pagination";
+import ProductForm from "./components/ProductForm";
 import ProductTable from "./components/ProductTable";
 import SearchBar from "./components/SearchBar";
+import type { ProductCreateInput } from "./types/product";
 import type { ProductListResponse } from "./types/product";
 
 const PAGE_SIZE = 20;
@@ -17,8 +19,16 @@ export default function App() {
   });
   const [page, setPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
+  const [refreshKey, setRefreshKey] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+  const [createErrorMessage, setCreateErrorMessage] = useState<string | null>(
+    null,
+  );
+  const [createSuccessMessage, setCreateSuccessMessage] = useState<
+    string | null
+  >(null);
 
   useEffect(() => {
     let shouldIgnore = false;
@@ -57,11 +67,37 @@ export default function App() {
     return () => {
       shouldIgnore = true;
     };
-  }, [page, searchTerm]);
+  }, [page, refreshKey, searchTerm]);
 
   function handleSearch(term: string) {
     setSearchTerm(term);
     setPage(1);
+  }
+
+  async function handleCreateProduct(
+    input: ProductCreateInput,
+  ): Promise<boolean> {
+    setIsCreating(true);
+    setCreateErrorMessage(null);
+    setCreateSuccessMessage(null);
+
+    try {
+      const createdProduct = await createProduct(input);
+      setCreateSuccessMessage(
+        `Produto "${createdProduct.name}" criado com sucesso.`,
+      );
+      setRefreshKey((current) => current + 1);
+      return true;
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Não foi possível criar o produto.";
+      setCreateErrorMessage(message);
+      return false;
+    } finally {
+      setIsCreating(false);
+    }
   }
 
   return (
@@ -77,7 +113,21 @@ export default function App() {
         </div>
       </section>
 
+      <section className="content-card">
+        <ProductForm
+          isSubmitting={isCreating}
+          errorMessage={createErrorMessage}
+          successMessage={createSuccessMessage}
+          onSubmit={handleCreateProduct}
+        />
+      </section>
+
       <section className="content-card" aria-busy={isLoading}>
+        <div className="section-heading">
+          <h2>Lista de produtos</h2>
+          <p>Consulte produtos cadastrados com busca por nome e paginação.</p>
+        </div>
+
         <SearchBar
           initialValue={searchTerm}
           isLoading={isLoading}

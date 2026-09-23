@@ -76,6 +76,7 @@ button.secondary:hover:not(:disabled) {
   border-radius: 20px;
   background: #ffffff;
   box-shadow: 0 24px 80px rgb(15 23 42 / 8%);
+  margin-bottom: 1.5rem;
   padding: clamp(1rem, 3vw, 2rem);
 }
 
@@ -99,6 +100,68 @@ p {
   color: #475569;
   font-size: 1.125rem;
   line-height: 1.7;
+}
+
+h2 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 1.5rem;
+}
+
+.section-heading {
+  margin-bottom: 1.5rem;
+}
+
+.section-heading p {
+  margin: 0.5rem 0 0;
+}
+
+.product-form {
+  display: grid;
+  gap: 1rem;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(160px, 0.6fr) auto;
+  gap: 1rem;
+  align-items: end;
+}
+
+.form-grid label {
+  display: grid;
+  gap: 0.5rem;
+  color: #334155;
+  font-weight: 700;
+}
+
+.form-grid input {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  color: #0f172a;
+  padding: 0.75rem 1rem;
+}
+
+.form-grid input:focus {
+  border-color: #2563eb;
+  outline: 3px solid rgb(37 99 235 / 15%);
+}
+
+.form-message {
+  border-radius: 12px;
+  margin: 0;
+  padding: 1rem;
+}
+
+.form-message.error {
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.form-message.success {
+  background: #ecfdf5;
+  color: #047857;
 }
 
 .search-bar {
@@ -185,4 +248,10 @@ p {
 .pagination span {
   color: #475569;
   font-weight: 700;
+}
+
+@media (max-width: 760px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
 }
