@@ -1,6 +1,6 @@
-import math
 import unicodedata
 from collections.abc import Callable, Sequence
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from functools import wraps
 
 from persistence import (
@@ -11,6 +11,9 @@ from persistence import (
 )
 from persistence import Product as Product
 from repositories import get_repository
+
+PRICE_QUANTUM = Decimal("0.01")
+MAX_PRICE_CENTS = 2**63 - 1
 
 
 class ProductServiceError(Exception):
@@ -57,18 +60,51 @@ def normalize_product_name(name: str) -> str:
     return normalized_name
 
 
-def validate_price(price: object) -> float:
-    """Return a valid finite positive price."""
-    if isinstance(price, bool) or not isinstance(price, (int, float)):
+def validate_price_cents(price: object) -> int:
+    """Return a valid positive monetary value represented as integer cents."""
+    if isinstance(price, bool):
         raise ProductValidationError("Product price must be a number")
 
     try:
-        normalized_price = float(price)
-    except OverflowError as exc:
-        raise ProductValidationError("Product price must be finite") from exc
-    if not math.isfinite(normalized_price) or normalized_price <= 0:
+        normalized_price = _price_to_decimal(price)
+    except (InvalidOperation, ValueError) as exc:
+        raise ProductValidationError("Product price must be a number") from exc
+
+    if not normalized_price.is_finite():
+        raise ProductValidationError("Product price must be finite")
+    if normalized_price <= 0:
         raise ProductValidationError("Product price must be greater than zero")
-    return normalized_price
+
+    cents = normalized_price * 100
+    if cents != cents.to_integral_value():
+        raise ProductValidationError(
+            "Product price must have at most two decimal places"
+        )
+    price_cents = int(cents)
+    if price_cents > MAX_PRICE_CENTS:
+        raise ProductValidationError("Product price is too large")
+    return price_cents
+
+
+def validate_price(price: object) -> Decimal:
+    """Return a valid positive monetary value rounded to cents."""
+    return price_from_cents(validate_price_cents(price))
+
+
+def price_from_cents(price_cents: int) -> Decimal:
+    return (Decimal(price_cents) / 100).quantize(PRICE_QUANTUM)
+
+
+def _price_to_decimal(price: object) -> Decimal:
+    if isinstance(price, Decimal):
+        return price
+    if isinstance(price, int):
+        return Decimal(price)
+    if isinstance(price, float):
+        return Decimal(str(price))
+    if isinstance(price, str):
+        return Decimal(price.strip())
+    raise ProductValidationError("Product price must be a number")
 
 
 @_translate_database_errors
@@ -94,7 +130,8 @@ def create_product(
     repository: ProductRepository | None = None,
 ) -> Product:
     normalized_name = normalize_product_name(name)
-    normalized_price = validate_price(price)
+    price_cents = validate_price_cents(price)
+    normalized_price = price_from_cents(price_cents)
 
     storage = _repository(db_name, repository)
     if storage.find_by_name(normalized_name) is not None:
@@ -102,7 +139,7 @@ def create_product(
 
     product_id = storage.create(
         normalized_name,
-        normalized_price,
+        price_cents,
     )
     return {
         "id": product_id,
@@ -143,7 +180,8 @@ def update_product(
     storage = _repository(db_name, repository)
     get_product(product_id, repository=storage)
     normalized_name = normalize_product_name(name)
-    normalized_price = validate_price(price)
+    price_cents = validate_price_cents(price)
+    normalized_price = price_from_cents(price_cents)
 
     product_with_same_name = storage.find_by_name(normalized_name)
     if (
@@ -155,7 +193,7 @@ def update_product(
     updated = storage.update(
         product_id,
         normalized_name,
-        normalized_price,
+        price_cents,
     )
     if not updated:
         raise ProductNotFoundError
@@ -196,10 +234,11 @@ def search_products(
     ]
 
 
-def calculate_average_price(products: Sequence[Product]) -> float:
+def calculate_average_price(products: Sequence[Product]) -> Decimal:
     if not products:
         raise ProductNotFoundError
-    return sum(product["price"] for product in products) / len(products)
+    total = sum((product["price"] for product in products), Decimal("0.00"))
+    return (total / len(products)).quantize(PRICE_QUANTUM, rounding=ROUND_HALF_UP)
 
 
 def filter_products_by_minimum_price(

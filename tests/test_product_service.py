@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 import pytest
 
 import database
@@ -14,7 +16,7 @@ def service_db(tmp_path):
 def test_create_product_normalizes_name_and_persists_product(service_db):
     product = product_service.create_product("  Mixed Case  ", 12, service_db)
 
-    assert product == {"id": 1, "name": "Mixed Case", "price": 12.0}
+    assert product == {"id": 1, "name": "Mixed Case", "price": Decimal("12.00")}
     assert product_service.get_product(1, service_db) == product
 
 
@@ -24,7 +26,7 @@ def test_create_product_rejects_empty_name(service_db, name):
         product_service.create_product(name, 10.0, service_db)
 
 
-@pytest.mark.parametrize("price", [0, -1, float("inf"), float("nan")])
+@pytest.mark.parametrize("price", [0, -1, float("inf"), float("nan"), "1.234"])
 def test_create_product_rejects_invalid_price(service_db, price):
     with pytest.raises(product_service.ProductValidationError):
         product_service.create_product("Produto", price, service_db)
@@ -52,7 +54,7 @@ def test_update_product_applies_shared_rules(service_db):
         service_db,
     )
 
-    assert updated == {"id": 1, "name": "Updated", "price": 15.0}
+    assert updated == {"id": 1, "name": "Updated", "price": Decimal("15.00")}
     assert product_service.get_product(1, service_db) == updated
 
 
@@ -91,7 +93,7 @@ def test_search_products_ignores_case_and_accents(service_db):
     product_service.create_product("Feijão", 8.0, service_db)
 
     assert product_service.search_products("FEIJAO", service_db) == [
-        {"id": 1, "name": "Feijão", "price": 8.0}
+        {"id": 1, "name": "Feijão", "price": Decimal("8.00")}
     ]
 
 
@@ -107,11 +109,11 @@ def test_database_errors_are_translated(monkeypatch):
 
 def test_price_reports_use_shared_validation():
     products = [
-        {"id": 1, "name": "A", "price": 10.0},
-        {"id": 2, "name": "B", "price": 20.0},
+        {"id": 1, "name": "A", "price": Decimal("10.00")},
+        {"id": 2, "name": "B", "price": Decimal("20.00")},
     ]
 
-    assert product_service.calculate_average_price(products) == 15.0
+    assert product_service.calculate_average_price(products) == Decimal("15.00")
     assert product_service.filter_products_by_minimum_price(products, 15.0) == [
         products[1]
     ]

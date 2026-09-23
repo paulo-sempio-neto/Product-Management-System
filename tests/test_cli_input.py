@@ -1,4 +1,5 @@
 import builtins
+from decimal import Decimal
 
 import cli_input
 import constants
@@ -8,13 +9,14 @@ def test_read_price_retries_after_invalid_and_non_positive_values(
     monkeypatch,
     capsys,
 ):
-    responses = iter(["invalid", "0", "12.5"])
+    responses = iter(["invalid", "0", "12.345", "12.5"])
     monkeypatch.setattr(builtins, "input", lambda _message: next(responses))
 
-    assert cli_input.read_price("Price: ") == 12.5
+    assert cli_input.read_price("Price: ") == Decimal("12.5")
     assert capsys.readouterr().out.splitlines() == [
         constants.ERROR_INVALID_PRICE,
         constants.ERROR_NEGATIVE_PRICE,
+        constants.ERROR_INVALID_PRICE,
     ]
 
 

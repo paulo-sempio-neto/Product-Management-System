@@ -1,6 +1,7 @@
 import sqlite3
 from collections.abc import Iterator
 from contextlib import closing, contextmanager
+from decimal import Decimal
 from pathlib import Path
 from typing import cast
 
@@ -61,11 +62,25 @@ def check_health(
         connection.execute("SELECT id FROM products LIMIT 1").fetchone()
 
 
-def _product_from_row(row: tuple[int, str, float]) -> Product:
+PRICE_QUANTUM = Decimal("0.01")
+
+
+def _price_from_cents(price_cents: int) -> Decimal:
+    return (Decimal(price_cents) / 100).quantize(PRICE_QUANTUM)
+
+
+def _price_to_cents(price: Decimal) -> int:
+    cents = price * 100
+    if cents != cents.to_integral_value():
+        raise DatabaseIntegrityError("Product price must be stored as cents")
+    return int(cents)
+
+
+def _product_from_row(row: tuple[int, str, int]) -> Product:
     return {
         "id": row[0],
         "name": row[1],
-        "price": row[2],
+        "price": _price_from_cents(row[2]),
     }
 
 
@@ -79,7 +94,7 @@ def create_table(
 
 def create_product(
     name: str,
-    price: float,
+    price_cents: int,
     db_name: DatabasePath = None,
     *,
     settings: Settings | None = None,
@@ -88,10 +103,10 @@ def create_product(
     with get_connection(db_name, settings=settings) as connection:
         cursor = connection.execute(
             """
-            INSERT INTO products (name, price)
+            INSERT INTO products (name, price_cents)
             VALUES (?, ?)
             """,
-            (name, price),
+            (name, price_cents),
         )
         return cast(int, cursor.lastrowid)
 
@@ -106,7 +121,7 @@ def clear_products(db_name: DatabasePath = None) -> None:
 def update_product(
     product_id: int,
     name: str,
-    price: float,
+    price_cents: int,
     db_name: DatabasePath = None,
     *,
     settings: Settings | None = None,
@@ -116,10 +131,10 @@ def update_product(
         cursor = connection.execute(
             """
             UPDATE products
-            SET name = ?, price = ?
+            SET name = ?, price_cents = ?
             WHERE id = ?
             """,
-            (name, price, product_id),
+            (name, price_cents, product_id),
         )
         return cursor.rowcount == 1
 
@@ -148,7 +163,7 @@ def load_products(
     """Return all products in deterministic ID order."""
     with get_connection(db_name, settings=settings) as connection:
         rows = connection.execute(
-            "SELECT id, name, price FROM products ORDER BY id"
+            "SELECT id, name, price_cents FROM products ORDER BY id"
         ).fetchall()
     return [_product_from_row(row) for row in rows]
 
@@ -158,9 +173,9 @@ def save_products(products: list[Product], db_name: DatabasePath = None) -> None
     with get_connection(db_name) as connection:
         connection.execute("DELETE FROM products")
         connection.executemany(
-            "INSERT INTO products (id, name, price) VALUES (?, ?, ?)",
+            "INSERT INTO products (id, name, price_cents) VALUES (?, ?, ?)",
             [
-                (product["id"], product["name"], product["price"])
+                (product["id"], product["name"], _price_to_cents(product["price"]))
                 for product in products
             ],
         )
@@ -177,7 +192,7 @@ def find_product_by_id(
         return None
     with get_connection(db_name, settings=settings) as connection:
         row = connection.execute(
-            "SELECT id, name, price FROM products WHERE id = ?",
+            "SELECT id, name, price_cents FROM products WHERE id = ?",
             (product_id,),
         ).fetchone()
     return None if row is None else _product_from_row(row)
@@ -192,7 +207,7 @@ def find_product_by_name(
     """Find a product by its exact stored name."""
     with get_connection(db_name, settings=settings) as connection:
         row = connection.execute(
-            "SELECT id, name, price FROM products WHERE name = ?",
+            "SELECT id, name, price_cents FROM products WHERE name = ?",
             (name,),
         ).fetchone()
     return None if row is None else _product_from_row(row)

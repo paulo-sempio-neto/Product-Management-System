@@ -309,8 +309,9 @@ Error responses retain `detail` and add `error.code`, for example:
 ```
 
 Validation failures retain a `detail` list with `loc`, `msg`, and `type`, but omit
-submitted `input` and internal `ctx` values. Boolean and non-finite prices are
-rejected with 422. Numeric price strings remain accepted for compatibility.
+submitted `input` and internal `ctx` values. Boolean, non-finite, non-positive,
+too-large, and more-than-two-decimal-place prices are rejected with 422. Numeric
+price strings remain accepted for compatibility.
 Internal failures return generic messages; server logs record failure categories
 without request bodies or database paths. HTTP error headers such as `Allow`
 are preserved. Error schemas and route groups are included in OpenAPI.
@@ -380,9 +381,11 @@ the existing `uvicorn api:app` entry point remains unchanged. Shared repository
 and API tests use a backend-parametrized fixture, currently containing only SQLite.
 SQLite schema, migration, and file-behavior tests remain backend-specific.
 
-Revision 1 adds database checks for nonblank text names and positive finite prices.
-It retains case-sensitive uniqueness, fractional price precision, product IDs,
-and the autoincrement sequence. No currency scale or rounding rule is introduced.
+Revision 2 stores product prices as integer cents in SQLite while the API and CLI
+continue to expose `price` in reais. It retains case-sensitive uniqueness, product
+IDs, and the autoincrement sequence. Older schemas using `price REAL` are upgraded
+only when existing prices are exactly representable with two decimal places; values
+that would require rounding are refused for manual repair.
 
 With all application writers stopped, inspect an existing file before upgrading:
 

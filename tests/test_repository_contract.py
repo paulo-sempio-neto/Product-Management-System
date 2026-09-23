@@ -1,3 +1,4 @@
+from decimal import Decimal
 from unittest.mock import create_autospec
 
 import pytest
@@ -19,9 +20,9 @@ def test_service_can_use_an_independent_repository(injected_repository):
     storage = injected_repository
     storage.find_by_name.return_value = None
     storage.create.return_value = 7
-    product = product_service.create_product("  Café  ", 1.2345, repository=storage)
-    assert product == {"id": 7, "name": "Café", "price": 1.2345}
-    storage.create.assert_called_once_with("Café", 1.2345)
+    product = product_service.create_product("  Café  ", "1.23", repository=storage)
+    assert product == {"id": 7, "name": "Café", "price": Decimal("1.23")}
+    storage.create.assert_called_once_with("Café", 123)
     storage.get.return_value = product
     assert product_service.get_product(7, repository=storage) == product
     storage.list_products.return_value = [product]
@@ -29,8 +30,8 @@ def test_service_can_use_an_independent_repository(injected_repository):
     assert product_service.search_products("CAFE", repository=storage) == [product]
     storage.update.return_value = True
     updated = product_service.update_product(7, " New ", 2, repository=storage)
-    assert updated == {"id": 7, "name": "New", "price": 2.0}
-    storage.update.assert_called_once_with(7, "New", 2.0)
+    assert updated == {"id": 7, "name": "New", "price": Decimal("2.00")}
+    storage.update.assert_called_once_with(7, "New", 200)
     storage.delete.return_value = True
     assert product_service.delete_product(7, repository=storage) == product
     storage.delete.assert_called_once_with(7)
@@ -74,17 +75,21 @@ def test_adapter_obeys_repository_contract(product_repository):
     storage.initialize()
     storage.check_health()
     assert storage.list_products() == []
-    first = storage.create("First", 1.1234)
-    second = storage.create("first", 2)
+    first = storage.create("First", 123)
+    second = storage.create("first", 200)
     assert [p["id"] for p in storage.list_products()] == [first, second]
     assert storage.find_by_name("First") == storage.get(first)
     assert storage.find_by_name("FIRST") is None
     with pytest.raises(DatabaseDuplicateError):
-        storage.create("First", 3)
-    assert storage.update(first, "Updated", 3)
-    assert storage.get(first) == {"id": first, "name": "Updated", "price": 3.0}
+        storage.create("First", 300)
+    assert storage.update(first, "Updated", 300)
+    assert storage.get(first) == {
+        "id": first,
+        "name": "Updated",
+        "price": Decimal("3.00"),
+    }
     assert storage.delete(first)
     assert storage.get(first) is None
-    assert not storage.update(first, "Gone", 1)
+    assert not storage.update(first, "Gone", 100)
     assert not storage.delete(first)
     assert storage.get(2**100) is None

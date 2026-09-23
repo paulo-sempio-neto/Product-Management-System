@@ -1,4 +1,5 @@
 import sqlite3
+from decimal import Decimal
 
 import pytest
 
@@ -11,8 +12,8 @@ def test_failed_bulk_replace_rolls_back_original_products(setup_products):
     with pytest.raises(database.DatabaseDuplicateError):
         database.save_products(
             [
-                {"id": 10, "name": "Duplicate", "price": 1.0},
-                {"id": 11, "name": "Duplicate", "price": 2.0},
+                {"id": 10, "name": "Duplicate", "price": Decimal("1.00")},
+                {"id": 11, "name": "Duplicate", "price": Decimal("2.00")},
             ],
             setup_products,
         )
@@ -31,8 +32,8 @@ def test_connection_rolls_back_non_sqlite_exception_and_closes(setup_products):
 
 def test_connection_commits_and_closes(setup_products):
     with database.get_connection(setup_products) as connection:
-        connection.execute("UPDATE products SET price = 7 WHERE id = 1")
-    assert database.find_product_by_id(1, setup_products)["price"] == 7
+        connection.execute("UPDATE products SET price_cents = 700 WHERE id = 1")
+    assert database.find_product_by_id(1, setup_products)["price"] == Decimal("7.00")
     with pytest.raises(sqlite3.ProgrammingError, match="closed"):
         connection.execute("SELECT 1")
 
@@ -49,16 +50,18 @@ def test_sqlite_errors_are_translated_and_connection_closed(setup_products):
 def test_lock_contention_is_bounded_and_translated(setup_products, monkeypatch):
     monkeypatch.setenv("SQLITE_TIMEOUT", "0.01")
     with database.get_connection(setup_products) as connection:
-        connection.execute("UPDATE products SET price = 9 WHERE id = 1")
+        connection.execute("UPDATE products SET price_cents = 900 WHERE id = 1")
         with pytest.raises(database.DatabaseError):
-            database.create_product("Blocked", 1.0, setup_products)
+            database.create_product("Blocked", 100, setup_products)
     assert database.find_product_by_name("Blocked", setup_products) is None
 
 
 def test_non_unique_constraint_is_not_reported_as_duplicate(setup_products):
     with pytest.raises(database.DatabaseIntegrityError) as caught:
         with database.get_connection(setup_products) as connection:
-            connection.execute("INSERT INTO products(name, price) VALUES(NULL, 2)")
+            connection.execute(
+                "INSERT INTO products(name, price_cents) VALUES(NULL, 200)"
+            )
     assert not isinstance(caught.value, database.DatabaseDuplicateError)
 
 

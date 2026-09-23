@@ -25,9 +25,9 @@ def setup_products(tmp_path):
 
     create_table(db_name)
 
-    create_product("Rice", 12.0, db_name)
-    create_product("Beans", 8.0, db_name)
-    create_product("Pasta", 5.0, db_name)
+    create_product("Rice", 1200, db_name)
+    create_product("Beans", 800, db_name)
+    create_product("Pasta", 500, db_name)
 
     return db_name
 

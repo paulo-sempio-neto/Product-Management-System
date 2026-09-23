@@ -7,8 +7,9 @@ from typing import Literal
 
 from persistence import DatabaseError
 
-CURRENT_VERSION = 1
-SchemaState = Literal["empty", "legacy", "current"]
+CURRENT_VERSION = 2
+MAX_PRICE = "92233720368547758.07"
+SchemaState = Literal["empty", "legacy", "revision_1", "current"]
 
 LEGACY_SCHEMA = """
 CREATE TABLE products (
@@ -18,9 +19,7 @@ CREATE TABLE products (
 )
 """
 
-# Preserve binary name equality and float precision. Currency/rounding semantics
-# are deliberately not inferred from a field currently exposed as a JSON number.
-PRODUCTS_SCHEMA = """
+PRODUCTS_SCHEMA_V1 = """
 CREATE TABLE products (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL CONSTRAINT uq_products_name UNIQUE,
@@ -31,6 +30,22 @@ CREATE TABLE products (
     CONSTRAINT ck_products_price CHECK (
         typeof(price) IN ('integer', 'real')
         AND price > 0 AND price <= 1.7976931348623157e308
+    )
+)
+"""
+
+PRODUCTS_SCHEMA = """
+CREATE TABLE products (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL CONSTRAINT uq_products_name UNIQUE,
+    price_cents INTEGER NOT NULL,
+    CONSTRAINT ck_products_name CHECK (
+        typeof(name) = 'text' AND length(trim(name)) > 0
+    ),
+    CONSTRAINT ck_products_price_cents CHECK (
+        typeof(price_cents) = 'integer'
+        AND price_cents > 0
+        AND price_cents <= 9223372036854775807
     )
 )
 """
@@ -78,20 +93,16 @@ def inspect_schema(connection: sqlite3.Connection) -> SchemaState:
     sql = _canonical(product_tables[0][2])
     if version == CURRENT_VERSION and sql == _canonical(PRODUCTS_SCHEMA):
         return "current"
-    if version != 0 or sql != _canonical(LEGACY_SCHEMA):
-        raise MigrationError("Unsupported schema/version; manual review required")
     # Rebuilding a table with unknown indexes, views, triggers or referencing
     # tables could lose behavior. Refuse rather than silently discarding them.
     if len(objects) != 1:
         raise MigrationError("Customized legacy schema; manual review required")
-    invalid = connection.execute(
-        "SELECT id FROM products WHERE "
-        "typeof(name) != 'text' OR length(trim(name)) = 0 OR "
-        "typeof(price) NOT IN ('integer', 'real') OR "
-        "NOT (price > 0 AND price <= 1.7976931348623157e308) LIMIT 1"
-    ).fetchone()
-    if invalid is not None:
-        raise MigrationError("Legacy data violates revision 1; manual repair required")
+    if version == 1 and sql == _canonical(PRODUCTS_SCHEMA_V1):
+        _validate_price_schema_rows(connection, "revision 2")
+        return "revision_1"
+    if version != 0 or sql != _canonical(LEGACY_SCHEMA):
+        raise MigrationError("Unsupported schema/version; manual review required")
+    _validate_price_schema_rows(connection, "revision 2")
     return "legacy"
 
 
@@ -111,7 +122,7 @@ def initialize_schema(connection: sqlite3.Connection) -> None:
 
 
 def upgrade_schema(connection: sqlite3.Connection) -> None:
-    """Revision 1: rebuild the known legacy table, preserving rows and ID history.
+    """Upgrade known product tables to revision 2, preserving rows and ID history.
 
     The caller owns one transaction spanning inspection, copy, and version stamp.
     Any exception must roll back the entire transaction. Stop application writers
@@ -120,20 +131,25 @@ def upgrade_schema(connection: sqlite3.Connection) -> None:
     if not connection.in_transaction:
         raise MigrationError("Migration requires an enclosing transaction")
     state = inspect_schema(connection)
-    if state != "legacy":
+    if state == "current":
+        return
+    if state == "empty":
         initialize_schema(connection)
         return
+    if state not in {"legacy", "revision_1"}:
+        raise MigrationError("Unsupported schema/version; manual review required")
     sequence = connection.execute(
         "SELECT seq FROM sqlite_sequence WHERE name = 'products'"
     ).fetchone()
     connection.execute(
-        PRODUCTS_SCHEMA.replace("CREATE TABLE products", "CREATE TABLE products_v1")
+        PRODUCTS_SCHEMA.replace("CREATE TABLE products", "CREATE TABLE products_v2")
     )
     connection.execute(
-        "INSERT INTO products_v1(id, name, price) SELECT id, name, price FROM products"
+        "INSERT INTO products_v2(id, name, price_cents) "
+        "SELECT id, name, CAST(round(price * 100) AS INTEGER) FROM products"
     )
     connection.execute("DROP TABLE products")
-    connection.execute("ALTER TABLE products_v1 RENAME TO products")
+    connection.execute("ALTER TABLE products_v2 RENAME TO products")
     if sequence is not None:
         connection.execute("DELETE FROM sqlite_sequence WHERE name = 'products'")
         connection.execute(
@@ -141,6 +157,23 @@ def upgrade_schema(connection: sqlite3.Connection) -> None:
         )
     connection.execute(f"PRAGMA user_version = {CURRENT_VERSION}")
     ensure_current(connection)
+
+
+def _validate_price_schema_rows(
+    connection: sqlite3.Connection, target_revision: str
+) -> None:
+    invalid = connection.execute(
+        f"SELECT id FROM products WHERE "
+        "typeof(name) != 'text' OR length(trim(name)) = 0 OR "
+        "typeof(price) NOT IN ('integer', 'real') OR "
+        f"NOT (price > 0 AND price <= {MAX_PRICE}) OR "
+        "abs((price * 100) - round(price * 100)) > 0.000001 "
+        "LIMIT 1"
+    ).fetchone()
+    if invalid is not None:
+        raise MigrationError(
+            f"Legacy data violates {target_revision}; manual repair required"
+        )
 
 
 def main() -> int:

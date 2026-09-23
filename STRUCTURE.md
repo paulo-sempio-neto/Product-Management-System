@@ -148,7 +148,7 @@ tests do not share product data or write repository database files.
 The CLI and API share `product_service.py` for product rules:
 
 - Names are trimmed while preserving their casing.
-- Empty names and non-positive or non-finite prices are rejected.
+- Empty names and non-positive, non-finite, or non-cent prices are rejected.
 - Duplicate names and missing products use explicit service errors.
 - The API maps service errors to HTTP responses.
 - The CLI maps service results and errors to Portuguese terminal messages.
@@ -159,10 +159,10 @@ Pydantic still validates API request shapes at the HTTP boundary, while
 ## Database
 
 `database.py` uses Python's built-in `sqlite3` module. The `products` table keeps
-an integer autoincrement primary key, an exactly unique text name, and a REAL
-price. Revision 1 adds named checks for nonblank text names and positive finite
-numeric prices. The immutable revision-1 DDL is in `migrations.py`; the SQLite
-`user_version` header records its revision. See
+an integer autoincrement primary key, an exactly unique text name, and an integer
+`price_cents` value. Revision 2 stores money as cents with named checks for
+nonblank text names and positive integer-cent prices. The immutable revision DDLs
+are in `migrations.py`; the SQLite `user_version` header records its revision. See
 [Database evolution](docs/database-evolution.md) for upgrade and modeling details.
 
 The default application database is `produtos.db`. Local `.db`, `.sqlite`,

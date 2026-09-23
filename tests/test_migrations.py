@@ -3,6 +3,7 @@ import sqlite3
 import subprocess
 import sys
 from contextlib import closing
+from decimal import Decimal
 
 import pytest
 
@@ -17,7 +18,7 @@ def legacy_db(tmp_path):
     with database.get_connection(target) as connection:
         connection.execute(migrations.LEGACY_SCHEMA)
         connection.execute(
-            "INSERT INTO products(id, name, price) VALUES (4, 'Precise', 1.23456789)"
+            "INSERT INTO products(id, name, price) VALUES (4, 'Precise', 1.23)"
         )
         connection.execute(
             "INSERT INTO products(id, name, price) VALUES (99, 'Deleted', 1)"
@@ -34,13 +35,13 @@ def snapshot(path):
 def test_fresh_database_is_versioned_and_initialization_is_idempotent(tmp_path):
     target = str(tmp_path / "fresh.db")
     database.create_table(target)
-    database.create_product("Keep", 1.123456789, target)
+    database.create_product("Keep", 112, target)
     before = snapshot(target)
     database.create_table(target)
     assert snapshot(target) == before
     with database.get_connection(target, read_only=True) as connection:
         assert migrations.inspect_schema(connection) == "current"
-        assert connection.execute("PRAGMA user_version").fetchone() == (1,)
+        assert connection.execute("PRAGMA user_version").fetchone() == (2,)
 
 
 def test_legacy_startup_and_health_refuse_without_writes(legacy_db):
@@ -53,11 +54,12 @@ def test_legacy_startup_and_health_refuse_without_writes(legacy_db):
 
 
 def test_explicit_upgrade_preserves_rows_and_deleted_id_history(legacy_db):
-    before = database.load_products(legacy_db)
     with database.get_connection(legacy_db) as connection:
         migrations.upgrade_schema(connection)
-    assert database.load_products(legacy_db) == before
-    assert database.create_product("Next", 2, legacy_db) == 100
+    assert database.load_products(legacy_db) == [
+        {"id": 4, "name": "Precise", "price": Decimal("1.23")}
+    ]
+    assert database.create_product("Next", 200, legacy_db) == 100
     current = snapshot(legacy_db)
     with database.get_connection(legacy_db) as connection:
         migrations.upgrade_schema(connection)
@@ -65,7 +67,7 @@ def test_explicit_upgrade_preserves_rows_and_deleted_id_history(legacy_db):
     database.check_health(legacy_db)
 
 
-@pytest.mark.parametrize("price", [0, -1, float("inf"), "not-numeric"])
+@pytest.mark.parametrize("price", [0, -1, float("inf"), "not-numeric", 1.234])
 def test_invalid_legacy_data_is_not_repaired_or_versioned(legacy_db, price):
     with database.get_connection(legacy_db) as connection:
         connection.execute("UPDATE products SET price = ?", (price,))
@@ -130,7 +132,7 @@ def test_upgrade_empty_database_with_or_without_legacy_table(tmp_path, legacy):
         migrations.upgrade_schema(connection)
     database.check_health(target)
     assert database.load_products(target) == []
-    assert database.create_product("First", 1, target) == 1
+    assert database.create_product("First", 100, target) == 1
 
 
 @pytest.mark.parametrize("command", ["status", "upgrade"])
@@ -172,30 +174,30 @@ def test_cli_status_and_upgrade(legacy_db):
             assert snapshot(legacy_db) == before
 
 
-@pytest.mark.parametrize("price", [0, -1, float("inf"), float("nan"), "invalid"])
-def test_price_constraint_rejects_direct_insert_and_update(setup_products, price):
+@pytest.mark.parametrize("price_cents", [0, -1, float("inf"), float("nan"), "invalid"])
+def test_price_constraint_rejects_direct_insert_and_update(setup_products, price_cents):
     before = database.load_products(setup_products)
     with pytest.raises(database.DatabaseIntegrityError):
-        database.create_product("Invalid", price, setup_products)
+        database.create_product("Invalid", price_cents, setup_products)
     with pytest.raises(database.DatabaseIntegrityError):
-        database.update_product(1, "Invalid", price, setup_products)
+        database.update_product(1, "Invalid", price_cents, setup_products)
     assert database.load_products(setup_products) == before
 
 
 @pytest.mark.parametrize("name", ["", "   ", b"binary"])
 def test_name_constraint_rejects_invalid_storage(setup_products, name):
     with pytest.raises(database.DatabaseIntegrityError):
-        database.create_product(name, 1, setup_products)
+        database.create_product(name, 100, setup_products)
 
 
-def test_exact_name_uniqueness_and_fractional_prices_are_preserved(setup_products):
+def test_exact_name_uniqueness_and_cent_prices_are_preserved(setup_products):
     for name in ("rice", "RICE", "Ríce"):
-        product_id = database.create_product(name, 0.000123456789, setup_products)
+        product_id = database.create_product(name, 123, setup_products)
         assert database.find_product_by_id(product_id, setup_products)["price"] == (
-            0.000123456789
+            Decimal("1.23")
         )
     with pytest.raises(database.DatabaseDuplicateError):
-        database.create_product("Rice", 1, setup_products)
+        database.create_product("Rice", 100, setup_products)
 
 
 def test_current_version_with_schema_drift_is_rejected(tmp_path):
@@ -209,7 +211,11 @@ def test_current_version_with_schema_drift_is_rejected(tmp_path):
 
 @pytest.mark.parametrize(
     ("original", "changed"),
-    [("'text'", "'te xt'"), ("'real'", "'re\tal'"), ("'integer'", "'inte\nger'")],
+    [
+        ("'text'", "'te xt'"),
+        ("'integer'", "'inte\nger'"),
+        ("9223372036854775807", "9223372036854775806"),
+    ],
 )
 def test_schema_verification_preserves_whitespace_in_literals(
     tmp_path, original, changed
@@ -217,7 +223,7 @@ def test_schema_verification_preserves_whitespace_in_literals(
     target = str(tmp_path / "changed-check.db")
     with database.get_connection(target) as connection:
         connection.execute(migrations.PRODUCTS_SCHEMA.replace(original, changed))
-        connection.execute("PRAGMA user_version = 1")
+        connection.execute("PRAGMA user_version = 2")
     before = snapshot(target)
     with pytest.raises(migrations.MigrationError):
         database.check_health(target)
@@ -227,9 +233,9 @@ def test_schema_verification_preserves_whitespace_in_literals(
 
 
 @pytest.mark.parametrize(
-    "schema", [migrations.LEGACY_SCHEMA, migrations.PRODUCTS_SCHEMA]
+    "schema", [migrations.LEGACY_SCHEMA, migrations.PRODUCTS_SCHEMA_V1]
 )
-def test_known_schema_allows_external_whitespace_and_quoted_table_name(
+def test_known_old_schema_allows_external_whitespace_and_quoted_table_name(
     tmp_path, schema
 ):
     target = str(tmp_path / "formatted.db")
@@ -238,11 +244,24 @@ def test_known_schema_allows_external_whitespace_and_quoted_table_name(
     ).replace(",\n", ",\n\n\t")
     with database.get_connection(target) as connection:
         connection.execute(formatted)
-        if schema == migrations.PRODUCTS_SCHEMA:
+        if schema == migrations.PRODUCTS_SCHEMA_V1:
             connection.execute("PRAGMA user_version = 1")
         migrations.upgrade_schema(connection)
     database.check_health(target)
-    assert database.create_product("Unchanged", 1.23456789, target) == 1
+    assert database.create_product("Unchanged", 123, target) == 1
+
+
+def test_current_schema_allows_external_whitespace_and_quoted_table_name(tmp_path):
+    target = str(tmp_path / "formatted-current.db")
+    formatted = migrations.PRODUCTS_SCHEMA.replace(
+        "CREATE TABLE products", 'CREATE\nTABLE IF NOT EXISTS "products"'
+    ).replace(",\n", ",\n\n\t")
+    with database.get_connection(target) as connection:
+        connection.execute(formatted)
+        connection.execute("PRAGMA user_version = 2")
+        migrations.upgrade_schema(connection)
+    database.check_health(target)
+    assert database.create_product("Unchanged", 123, target) == 1
 
 
 @pytest.mark.parametrize(
@@ -251,7 +270,10 @@ def test_known_schema_allows_external_whitespace_and_quoted_table_name(
         ("CHECK (name != 'a'' b')", "CHECK (name != 'a''b')"),
         ("CHECK (name != 'IF NOT EXISTS')", "CHECK (name != '')"),
         ("CHECK (name != '\"products\"')", "CHECK (name != 'products')"),
-        ("CREATE TABLE products (price REAL)", "CREATE TABLE products (priceREAL)"),
+        (
+            "CREATE TABLE products (price_cents INTEGER)",
+            "CREATE TABLE products (price_centsINTEGER)",
+        ),
     ],
 )
 def test_schema_comparison_does_not_rewrite_quoted_content_or_merge_tokens(left, right):

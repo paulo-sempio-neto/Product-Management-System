@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from database import (
     find_product_by_id,
     find_product_by_name,
@@ -11,7 +13,7 @@ def test_find_product_by_id(setup_products):
 
     assert product is not None
     assert product["name"] == "Rice"
-    assert product["price"] == 12.0
+    assert product["price"] == Decimal("12.00")
 
 
 def test_find_product_by_id_when_product_does_not_exist(setup_products):
@@ -27,7 +29,7 @@ def test_find_product_by_name(setup_products):
 
     assert product is not None
     assert product["id"] == 1
-    assert product["price"] == 12.0
+    assert product["price"] == Decimal("12.00")
 
 
 def test_find_product_by_name_when_product_does_not_exist(setup_products):

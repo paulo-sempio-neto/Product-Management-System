@@ -1,6 +1,7 @@
 import os
 import subprocess
 import sys
+from decimal import Decimal
 
 import pytest
 
@@ -81,8 +82,10 @@ def test_cli_database_default_respects_environment(monkeypatch, tmp_path):
     target = tmp_path / "cli.db"
     monkeypatch.setenv("DB_NAME", str(target))
     database.create_table()
-    database.create_product("Configured", 2.0)
-    assert database.load_products() == [{"id": 1, "name": "Configured", "price": 2.0}]
+    database.create_product("Configured", 200)
+    assert database.load_products() == [
+        {"id": 1, "name": "Configured", "price": Decimal("2.00")}
+    ]
 
 
 @pytest.mark.parametrize("override", [None, "true"])

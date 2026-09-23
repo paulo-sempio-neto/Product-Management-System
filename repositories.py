@@ -31,14 +31,14 @@ class SQLiteProductRepository:
             name, self.database_path, settings=self.settings
         )
 
-    def create(self, name: str, price: float) -> int:
+    def create(self, name: str, price_cents: int) -> int:
         return database.create_product(
-            name, price, self.database_path, settings=self.settings
+            name, price_cents, self.database_path, settings=self.settings
         )
 
-    def update(self, product_id: int, name: str, price: float) -> bool:
+    def update(self, product_id: int, name: str, price_cents: int) -> bool:
         return database.update_product(
-            product_id, name, price, self.database_path, settings=self.settings
+            product_id, name, price_cents, self.database_path, settings=self.settings
         )
 
     def delete(self, product_id: int) -> bool:

@@ -33,34 +33,36 @@ Database uniqueness remains authoritative if a concurrent insert wins a race.
 ## Migration strategy
 
 This project has one table and no ORM. A small explicit SQLite runner is sufficient
-for the first controlled schema transition without adding SQLAlchemy/Alembic merely
-to recreate the existing adapter. `PRAGMA user_version` is owned by this application
-and records revision 1. Revision-1 DDL and its upgrade must stay immutable; future
+for controlled schema transitions without adding SQLAlchemy/Alembic merely to
+recreate the existing adapter. `PRAGMA user_version` is owned by this application
+and records revision 2. Earlier DDLs and their upgrades must stay immutable; future
 changes require another ordered revision and tests from each supported predecessor.
 If ORM-backed PostgreSQL support is implemented later, adopt a backend-aware migration
 tool such as Alembic as part of that implementation, not as a second concurrent
 schema owner.
 
-Fresh empty databases initialize to revision 1 during startup. An existing database
+Fresh empty databases initialize to revision 2 during startup. An existing database
 is inspected first: the known pre-Phase-5 schema is `legacy`; a matching revision-1
-schema is `current`. Unexpected versions, altered tables, and legacy custom indexes,
-triggers, views, or additional tables require manual review. This deliberately
-conservative adoption policy may reject an equivalent manually authored schema.
-It never stamps an unknown schema merely because a table named `products` exists.
+schema is `revision_1`; a matching revision-2 schema is `current`. Unexpected
+versions, altered tables, and legacy custom indexes, triggers, views, or additional
+tables require manual review. This deliberately conservative adoption policy may
+reject an equivalent manually authored schema. It never stamps an unknown schema
+merely because a table named `products` exists.
 
 Schema verification compares SQL tokens, preserving whitespace and escaped quotes
 inside literals and boundaries between identifiers. Whitespace between tokens,
 the known optional `IF NOT EXISTS` header, and the quoted `products` table name
 are tolerated. This is intentionally not a general SQL normalizer: unfamiliar
-DDL remains rejected for review. Phase 6A changes verification only, not revision-1
-DDL, version stamps, or stored rows.
+DDL remains rejected for review.
 
 `status` uses a read-only connection, validates legacy data, and never creates a
 missing file. `upgrade` also requires an existing file and uses one transaction
 for inspection, replacement-table creation, row copying, old-table removal, rename,
 sequence restoration, and the revision stamp. Failure rolls everything back.
-No names, prices, IDs, or deleted-ID sequence history are rewritten. Invalid legacy
-rows stop the upgrade; the operator must decide how to repair them.
+Names, IDs, and deleted-ID sequence history are preserved. Legacy `price REAL`
+values are converted to integer cents only when they are exactly representable
+with two decimal places; values that would require rounding stop the upgrade for
+manual repair.
 
 The table replacement follows SQLite's documented
 [generalized ALTER TABLE procedure](https://sqlite.org/lang_altertable.html#otheralter).
@@ -84,7 +86,7 @@ that storage is writable.
    backups outside the container and outside the source repository:
 
    ```powershell
-   Copy-Item -LiteralPath produtos.db -Destination produtos-before-v1.db
+   Copy-Item -LiteralPath produtos.db -Destination produtos-before-v2.db
    ```
 
    This project uses SQLite's default rollback journal. If journal mode has been
@@ -102,8 +104,9 @@ that storage is writable.
 
 There is no automatic downgrade. To roll back, stop all writers, preserve the failed
 database separately, restore the verified pre-upgrade backup, and run the matching
-previous application version. Revision-1 startup refuses a restored legacy file.
-Restoring a backup discards subsequent writes, so decide recovery explicitly.
+previous application version. Revision-2 startup refuses a restored legacy or
+revision-1 file until it is explicitly upgraded. Restoring a backup discards
+subsequent writes, so decide recovery explicitly.
 
 ## Container upgrade
 
@@ -112,7 +115,7 @@ present, stop all writers and copy its database to a new backup destination:
 
 ```powershell
 docker compose stop api
-docker compose cp api:/data/products.db .\products-before-v1.db
+docker compose cp api:/data/products.db .\products-before-v2.db
 docker compose build api
 docker compose run --rm --no-deps api python -m migrations status --database /data/products.db
 docker compose run --rm --no-deps api python -m migrations upgrade --database /data/products.db
@@ -120,29 +123,26 @@ docker compose up -d api
 ```
 
 The one-off service uses the same volume and unprivileged user as the API.
-For an empty/new deployment, normal startup initializes revision 1; no upgrade
+For an empty/new deployment, normal startup initializes revision 2; no upgrade
 command is needed. These container commands require Docker and were not executed
 in the development workspace where Docker is unavailable.
 
 ## Modeling decisions
 
-| Concern | Revision 1 decision |
+| Concern | Revision 2 decision |
 |---|---|
-| Table/columns | Keep `products`, `id`, `name`, `price`; no API renaming. |
+| Table/columns | Keep API/CLI `price`; store SQLite `products.id`, `products.name`, and `products.price_cents`. |
 | IDs | Preserve signed 64-bit SQLite integer IDs and autoincrement history. |
 | Name equality | Preserve exact, case-sensitive, accent-sensitive uniqueness. `Rice` and `rice` are distinct. |
 | Name normalization | The service applies Python Unicode `strip()`. Storage additionally rejects non-text and empty/ASCII-space-only names; SQL `trim()` is not a replacement for Unicode normalization. |
 | Search | Preserve the existing Python case/accent normalization and substring search. |
-| Price | Keep positive finite binary64 floats, including existing fractional precision. Database checks reject invalid numeric values and nonnumeric stored text. |
+| Price | Convert accepted input to positive integer cents. Reject non-finite values, zero/negative values, values larger than signed 64-bit cents, and more than two decimal places. |
 | Indexes | The primary key and name-unique index already cover ID and exact-name lookups. Another name index would duplicate work. No ordinary index accelerates the current Python substring scan. |
 
-An exact decimal price would be preferable if this becomes a monetary accounting
-domain, but no currency, scale, rounding mode, or allowed range is specified.
-Silently changing to integer cents or `NUMERIC(12,2)` would round existing values
-and reject currently valid small/large prices. A later decimal migration needs an
-explicit API contract, data audit, and separately versioned conversion.
-PostgreSQL distinguishes approximate floating point from exact numeric types in its
-[numeric type documentation](https://www.postgresql.org/docs/current/datatype-numeric.html).
+The API and CLI remain compatible at the boundary by accepting decimal-looking
+prices and returning `price` in reais. The service owns conversion to cents, so
+business rules avoid binary floating point for money. Migration refuses ambiguous
+legacy values instead of silently rounding existing data.
 
 ## PostgreSQL preparation and acceptance criteria
 
@@ -162,7 +162,7 @@ driver, or migration runner is introduced in Phase 6A.
 |---|---|
 | Integer autoincrement | `BIGINT GENERATED BY DEFAULT AS IDENTITY`; preserve imported IDs and advance the sequence beyond imported/deleted-ID history. |
 | `TEXT ... UNIQUE` with binary comparison | Text with deterministic case/accent-sensitive collation, e.g. `COLLATE "C"`; retain named unique constraint `uq_products_name`. |
-| SQLite `REAL` (binary64) | `DOUBLE PRECISION` while the float API remains; preserve finite-positive checks including rejecting NaN/infinity. PostgreSQL `REAL` is not the equivalent precision. |
+| SQLite `INTEGER` cents | `BIGINT` cents or `NUMERIC(12,2)` behind the same repository contract; avoid approximate floating point for money. |
 | `?` placeholders, lastrowid | Driver parameter binding and `INSERT ... RETURNING id`; no interpolated values. |
 | SQLite error codes | Translate only the name unique-constraint violation to `DatabaseDuplicateError`; other integrity/driver failures use the neutral error hierarchy. |
 | Missing update/delete | Return False from affected-row checks; never report a missing write as success. |

@@ -1,3 +1,4 @@
+from decimal import Decimal
 from unittest.mock import create_autospec
 
 import pytest
@@ -26,14 +27,14 @@ def test_configured_repository_keeps_path_and_timeout(tmp_path, monkeypatch):
     monkeypatch.setenv("DB_NAME", str(tmp_path / "wrong.db"))
     monkeypatch.setenv("SQLITE_TIMEOUT", "invalid")
     storage.initialize()
-    product_id = storage.create("First", 1.234)
+    product_id = storage.create("First", 123)
     assert storage.get(product_id) == {
         "id": product_id,
         "name": "First",
-        "price": 1.234,
+        "price": Decimal("1.23"),
     }
     assert storage.find_by_name("First") == storage.get(product_id)
-    assert storage.update(product_id, "Updated", 2)
+    assert storage.update(product_id, "Updated", 200)
     assert len(storage.list_products()) == 1
     storage.check_health()
     assert storage.delete(product_id)
@@ -79,7 +80,9 @@ def test_application_uses_injected_storage_for_startup_and_requests(
 ):
     target = tmp_path / "unused.db"
     storage = create_autospec(ProductRepository, instance=True, spec_set=True)
-    storage.list_products.return_value = [{"id": 42, "name": "Injected", "price": 2.0}]
+    storage.list_products.return_value = [
+        {"id": 42, "name": "Injected", "price": Decimal("2.00")}
+    ]
 
     def forbid_default_storage(**_kwargs):
         pytest.fail("Explicit injection must not create the configured backend")

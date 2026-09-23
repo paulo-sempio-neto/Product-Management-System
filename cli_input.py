@@ -1,18 +1,24 @@
-import math
+from decimal import Decimal, InvalidOperation
 
 import constants
 
+MAX_PRICE_CENTS = 2**63 - 1
 
-def read_price(message: str) -> float:
+
+def read_price(message: str) -> Decimal:
     """Read a positive product price from the terminal."""
     while True:
         try:
-            price = float(input(message))
-            if not math.isfinite(price) or price <= 0:
+            price = Decimal(input(message).strip())
+            if not price.is_finite() or price <= 0:
                 print(constants.ERROR_NEGATIVE_PRICE)
                 continue
+            cents = price * 100
+            if cents != cents.to_integral_value() or int(cents) > MAX_PRICE_CENTS:
+                print(constants.ERROR_INVALID_PRICE)
+                continue
             return price
-        except ValueError:
+        except InvalidOperation:
             print(constants.ERROR_INVALID_PRICE)
 
 
