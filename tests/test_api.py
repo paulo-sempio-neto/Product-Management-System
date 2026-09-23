@@ -56,6 +56,28 @@ def test_root(api_client):
     assert response.json() == {"message": "Bem-vindo à API de Produtos!"}
 
 
+def test_application_allows_configured_cors_origin(api_db_path):
+    origin = "https://products.example.com"
+    application = api.create_app(
+        Settings(
+            database_path=str(api_db_path),
+            cors_allowed_origins=(origin,),
+        )
+    )
+
+    with TestClient(application) as client:
+        response = client.options(
+            "/products",
+            headers={
+                "Origin": origin,
+                "Access-Control-Request-Method": "GET",
+            },
+        )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == origin
+
+
 def test_api_client_starts_with_empty_database(api_client):
     response = api_client.get("/products")
     assert response.status_code == 200

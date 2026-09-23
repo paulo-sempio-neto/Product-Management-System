@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from typing import Annotated, cast
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query, Request
+from fastapi.middleware.cors import CORSMiddleware
 
 from api_errors import register_error_handlers
 from config import Settings, get_settings
@@ -86,6 +87,13 @@ def create_app(
             {"name": "system", "description": "Service information and readiness"},
         ],
     )
+    if resolved.cors_allowed_origins:
+        application.add_middleware(
+            CORSMiddleware,
+            allow_origins=list(resolved.cors_allowed_origins),
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
     application.state.product_repository = storage
     register_error_handlers(application)
     application.include_router(router)

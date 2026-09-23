@@ -294,6 +294,8 @@ process; restart the API after configuration changes.
 | `DB_NAME` | `produtos.db` in development | SQLite file path; must be explicit in testing and production |
 | `SQLITE_TIMEOUT` | `5` | Lock wait in seconds, greater than zero and at most 60 |
 | `API_DOCS_ENABLED` | `true`, except in production | Enables `/docs`, `/redoc`, and `/openapi.json` |
+| `PORT` | `8000` in the Docker image | HTTP port used by container platforms such as Render |
+| `CORS_ALLOWED_ORIGINS` | Vite local origins in development; empty otherwise | Comma-separated browser origins allowed to call the API |
 
 Relative database paths resolve from the working directory. Use an absolute path
 for a stable location in production. The containing directory must already exist.
@@ -303,6 +305,11 @@ it does not itself create or manage test isolation (pytest fixtures do that).
 Unknown backends, including `postgresql`, fail configuration validation. `DB_NAME`
 accepts a file path, not a database URL or SQLite URI. Existing deployments without
 `DB_BACKEND` retain the SQLite default.
+
+`CORS_ALLOWED_ORIGINS` is intended for browser-based frontends. Development
+defaults allow the local Vite server at `http://localhost:5173` and
+`http://127.0.0.1:5173`. Production must list explicit origins, such as the
+Vercel application URL; wildcard origins are rejected in production.
 
 Example PowerShell configuration for a separate local database:
 
@@ -372,9 +379,11 @@ baseline.
 ## Container Deployment
 
 The production image runs the API as an unprivileged user with `APP_ENV=production`,
-docs disabled, and SQLite stored at `/data/products.db`. The accompanying Compose
-file mounts that directory as the named `product_data` volume, so rebuilding or
-recreating the container does not discard product data.
+docs disabled, SQLite stored at `/data/products.db`, and `PORT=8000` by default.
+Container platforms such as Render can override `PORT` at runtime while the
+application continues to bind to `0.0.0.0`. The accompanying Compose file mounts
+that directory as the named `product_data` volume, so rebuilding or recreating the
+container does not discard product data.
 
 Build and start the local production-shaped deployment:
 

@@ -17,6 +17,7 @@ def clean_environment(monkeypatch):
         "DB_NAME",
         "SQLITE_TIMEOUT",
         "API_DOCS_ENABLED",
+        "CORS_ALLOWED_ORIGINS",
     ):
         monkeypatch.delenv(name, raising=False)
 
@@ -28,6 +29,10 @@ def test_development_defaults():
     assert settings.database_path == "produtos.db"
     assert settings.sqlite_timeout == 5.0
     assert settings.docs_enabled is True
+    assert settings.cors_allowed_origins == (
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    )
 
 
 @pytest.mark.parametrize("environment", ["testing", "production"])
@@ -47,7 +52,32 @@ def test_environment_settings(monkeypatch, tmp_path, environment):
     assert settings.database_path == str(target)
     assert settings.sqlite_timeout == 0.25
     assert settings.docs_enabled is (environment != "production")
+    assert settings.cors_allowed_origins == (
+        ("http://localhost:5173", "http://127.0.0.1:5173")
+        if environment == "development"
+        else ()
+    )
     assert not target.exists()
+
+
+def test_configured_cors_origins_are_parsed(monkeypatch):
+    monkeypatch.setenv(
+        "CORS_ALLOWED_ORIGINS",
+        "http://localhost:5173, https://products.example.com ",
+    )
+    settings = config.get_settings()
+    assert settings.cors_allowed_origins == (
+        "http://localhost:5173",
+        "https://products.example.com",
+    )
+
+
+def test_production_rejects_wildcard_cors_origins(monkeypatch, tmp_path):
+    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.setenv("DB_NAME", str(tmp_path / "production.db"))
+    monkeypatch.setenv("CORS_ALLOWED_ORIGINS", "*")
+    with pytest.raises(ValueError, match="CORS_ALLOWED_ORIGINS"):
+        config.get_settings()
 
 
 @pytest.mark.parametrize(
