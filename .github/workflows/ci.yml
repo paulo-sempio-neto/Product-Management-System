@@ -35,6 +35,9 @@ jobs:
       - name: Type check
         run: python -m mypy
 
+      - name: Smoke test application startup
+        run: python -B -m pytest tests/test_app_smoke.py
+
       - name: Test with coverage
         run: >-
           python -B -m pytest --cov --cov-report=term-missing
