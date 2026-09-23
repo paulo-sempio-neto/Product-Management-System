@@ -1,12 +1,22 @@
 import { useEffect, useState } from "react";
 
-import { createProduct, listProducts } from "./api/products";
+import {
+  ApiRequestError,
+  createProduct,
+  listProducts,
+  updateProduct,
+} from "./api/products";
 import Pagination from "./components/Pagination";
+import ProductEditForm from "./components/ProductEditForm";
 import ProductForm from "./components/ProductForm";
 import ProductTable from "./components/ProductTable";
 import SearchBar from "./components/SearchBar";
-import type { ProductCreateInput } from "./types/product";
-import type { ProductListResponse } from "./types/product";
+import type {
+  Product,
+  ProductCreateInput,
+  ProductListResponse,
+  ProductUpdateInput,
+} from "./types/product";
 
 const PAGE_SIZE = 20;
 
@@ -27,6 +37,14 @@ export default function App() {
     null,
   );
   const [createSuccessMessage, setCreateSuccessMessage] = useState<
+    string | null
+  >(null);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [updateErrorMessage, setUpdateErrorMessage] = useState<string | null>(
+    null,
+  );
+  const [updateSuccessMessage, setUpdateSuccessMessage] = useState<
     string | null
   >(null);
 
@@ -100,6 +118,60 @@ export default function App() {
     }
   }
 
+  function handleSelectProductToEdit(product: Product) {
+    setEditingProduct(product);
+    setUpdateErrorMessage(null);
+    setUpdateSuccessMessage(null);
+  }
+
+  function handleCancelEdit() {
+    setEditingProduct(null);
+    setUpdateErrorMessage(null);
+    setUpdateSuccessMessage(null);
+  }
+
+  async function handleUpdateProduct(
+    input: ProductUpdateInput,
+  ): Promise<boolean> {
+    if (!editingProduct) {
+      return false;
+    }
+
+    setIsUpdating(true);
+    setUpdateErrorMessage(null);
+    setUpdateSuccessMessage(null);
+
+    try {
+      const updatedProduct = await updateProduct(editingProduct.id, input);
+      setEditingProduct(updatedProduct);
+      setUpdateSuccessMessage(
+        `Produto "${updatedProduct.name}" atualizado com sucesso.`,
+      );
+      setRefreshKey((current) => current + 1);
+      return true;
+    } catch (error) {
+      if (error instanceof ApiRequestError && error.status === 409) {
+        setUpdateErrorMessage(
+          "Este produto foi alterado por outra operação. Recarregue a listagem e tente novamente.",
+        );
+      } else if (error instanceof ApiRequestError && error.status === 404) {
+        setUpdateErrorMessage(
+          "Produto não encontrado. Ele pode ter sido removido por outra operação.",
+        );
+      } else {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Não foi possível atualizar o produto.";
+        setUpdateErrorMessage(message);
+      }
+
+      return false;
+    } finally {
+      setIsUpdating(false);
+    }
+  }
+
   return (
     <main className="app-shell">
       <section className="page-header">
@@ -121,6 +193,19 @@ export default function App() {
           onSubmit={handleCreateProduct}
         />
       </section>
+
+      {editingProduct && (
+        <section className="content-card">
+          <ProductEditForm
+            product={editingProduct}
+            isSubmitting={isUpdating}
+            errorMessage={updateErrorMessage}
+            successMessage={updateSuccessMessage}
+            onCancel={handleCancelEdit}
+            onSubmit={handleUpdateProduct}
+          />
+        </section>
+      )}
 
       <section className="content-card" aria-busy={isLoading}>
         <div className="section-heading">
@@ -150,7 +235,10 @@ export default function App() {
         )}
 
         {!isLoading && !errorMessage && productsPage.items.length > 0 && (
-          <ProductTable products={productsPage.items} />
+          <ProductTable
+            products={productsPage.items}
+            onEdit={handleSelectProductToEdit}
+          />
         )}
 
         {!errorMessage && (

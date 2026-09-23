@@ -54,6 +54,10 @@ button.secondary:hover:not(:disabled) {
   background: #f1f5f9;
 }
 
+button.compact {
+  padding: 0.5rem 0.75rem;
+}
+
 .app-shell {
   min-height: 100vh;
   padding: 2rem clamp(1rem, 4vw, 3rem);
@@ -148,6 +152,12 @@ h2 {
   outline: 3px solid rgb(37 99 235 / 15%);
 }
 
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
 .form-message {
   border-radius: 12px;
   margin: 0;
@@ -223,6 +233,11 @@ h2 {
   padding: 1rem;
   text-align: left;
   white-space: nowrap;
+}
+
+.product-table th:last-child,
+.product-table td:last-child {
+  text-align: right;
 }
 
 .product-table th {

@@ -20,6 +20,17 @@ type ApiErrorResponse = {
   };
 };
 
+export class ApiRequestError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly code?: string,
+  ) {
+    super(message);
+    this.name = "ApiRequestError";
+  }
+}
+
 async function request<T>(
   path: string,
   options: RequestInit = {},
@@ -34,9 +45,12 @@ async function request<T>(
 
   if (!response.ok) {
     let message = `API request failed with status ${response.status}`;
+    let code: string | undefined;
 
     try {
       const errorBody = (await response.json()) as ApiErrorResponse;
+      code = errorBody.error?.code;
+
       if (typeof errorBody.detail === "string") {
         message = errorBody.detail;
       } else if (Array.isArray(errorBody.detail) && errorBody.detail[0]?.msg) {
@@ -47,7 +61,7 @@ async function request<T>(
       // or not JSON.
     }
 
-    throw new Error(message);
+    throw new ApiRequestError(message, response.status, code);
   }
 
   if (response.status === 204) {

@@ -2,6 +2,7 @@ import type { Product } from "../types/product";
 
 type ProductTableProps = {
   products: Product[];
+  onEdit: (product: Product) => void;
 };
 
 const currencyFormatter = new Intl.NumberFormat("pt-BR", {
@@ -9,7 +10,7 @@ const currencyFormatter = new Intl.NumberFormat("pt-BR", {
   currency: "BRL",
 });
 
-export default function ProductTable({ products }: ProductTableProps) {
+export default function ProductTable({ products, onEdit }: ProductTableProps) {
   return (
     <div className="table-wrapper">
       <table className="product-table">
@@ -19,6 +20,7 @@ export default function ProductTable({ products }: ProductTableProps) {
             <th>Nome</th>
             <th>Preço</th>
             <th>Versão</th>
+            <th>Ações</th>
           </tr>
         </thead>
         <tbody>
@@ -28,6 +30,15 @@ export default function ProductTable({ products }: ProductTableProps) {
               <td>{product.name}</td>
               <td>{currencyFormatter.format(product.price)}</td>
               <td>{product.version}</td>
+              <td>
+                <button
+                  type="button"
+                  className="secondary compact"
+                  onClick={() => onEdit(product)}
+                >
+                  Editar
+                </button>
+              </td>
             </tr>
           ))}
         </tbody>
