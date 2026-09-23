@@ -7,10 +7,17 @@ import type {
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "/api";
 
-type ListProductsParams = {
+export type ListProductsParams = {
   page?: number;
   limit?: number;
   name?: string;
+};
+
+type ApiErrorResponse = {
+  detail?: string | Array<{ msg: string }>;
+  error?: {
+    code: string;
+  };
 };
 
 async function request<T>(
@@ -26,7 +33,21 @@ async function request<T>(
   });
 
   if (!response.ok) {
-    throw new Error(`API request failed with status ${response.status}`);
+    let message = `API request failed with status ${response.status}`;
+
+    try {
+      const errorBody = (await response.json()) as ApiErrorResponse;
+      if (typeof errorBody.detail === "string") {
+        message = errorBody.detail;
+      } else if (Array.isArray(errorBody.detail) && errorBody.detail[0]?.msg) {
+        message = errorBody.detail[0].msg;
+      }
+    } catch {
+      // Keep the generic status-based message when the response body is empty
+      // or not JSON.
+    }
+
+    throw new Error(message);
   }
 
   if (response.status === 204) {

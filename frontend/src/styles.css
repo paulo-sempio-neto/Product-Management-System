@@ -20,20 +20,63 @@ body {
   min-height: 100vh;
 }
 
-.app-shell {
-  display: grid;
-  min-height: 100vh;
-  place-items: center;
-  padding: 2rem;
+button,
+input {
+  font: inherit;
 }
 
-.hero {
-  max-width: 720px;
+button {
+  border: 0;
+  border-radius: 10px;
+  background: #2563eb;
+  color: #ffffff;
+  cursor: pointer;
+  font-weight: 700;
+  padding: 0.75rem 1rem;
+}
+
+button:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+button.secondary {
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+}
+
+button.secondary:hover:not(:disabled) {
+  background: #f1f5f9;
+}
+
+.app-shell {
+  min-height: 100vh;
+  padding: 2rem clamp(1rem, 4vw, 3rem);
+}
+
+.page-header,
+.content-card {
+  width: min(1120px, 100%);
+  margin: 0 auto;
+}
+
+.page-header {
+  display: grid;
+  gap: 0.75rem;
+  padding: 2rem 0;
+}
+
+.content-card {
   border: 1px solid #e5e7eb;
-  border-radius: 24px;
+  border-radius: 20px;
   background: #ffffff;
   box-shadow: 0 24px 80px rgb(15 23 42 / 8%);
-  padding: 3rem;
+  padding: clamp(1rem, 3vw, 2rem);
 }
 
 .eyebrow {
@@ -48,7 +91,7 @@ body {
 h1 {
   margin: 0;
   color: #0f172a;
-  font-size: clamp(2rem, 5vw, 3.5rem);
+  font-size: clamp(2rem, 5vw, 3rem);
   line-height: 1;
 }
 
@@ -56,4 +99,90 @@ p {
   color: #475569;
   font-size: 1.125rem;
   line-height: 1.7;
+}
+
+.search-bar {
+  display: grid;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.search-bar label {
+  color: #334155;
+  font-weight: 700;
+}
+
+.search-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.search-row input {
+  min-width: min(100%, 320px);
+  flex: 1;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  color: #0f172a;
+  padding: 0.75rem 1rem;
+}
+
+.search-row input:focus {
+  border-color: #2563eb;
+  outline: 3px solid rgb(37 99 235 / 15%);
+}
+
+.status-message {
+  border-radius: 12px;
+  background: #f8fafc;
+  color: #475569;
+  margin: 1rem 0;
+  padding: 1rem;
+}
+
+.status-message.error {
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.table-wrapper {
+  overflow-x: auto;
+}
+
+.product-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.product-table th,
+.product-table td {
+  border-bottom: 1px solid #e2e8f0;
+  padding: 1rem;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.product-table th {
+  color: #334155;
+  font-size: 0.875rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.product-table td {
+  color: #0f172a;
+}
+
+.pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.pagination span {
+  color: #475569;
+  font-weight: 700;
 }
