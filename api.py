@@ -14,6 +14,7 @@ from product_service import (
     ProductNotFoundError,
     ProductPersistenceError,
     ProductValidationError,
+    ProductVersionConflictError,
     check_product_storage,
     initialize_products,
     list_products_page,
@@ -184,6 +185,7 @@ def update_product(
             product_id,
             product.name,
             product.price,
+            product.version,
             repository=repository,
         )
     except ProductNotFoundError as exc:
@@ -195,6 +197,11 @@ def update_product(
         raise HTTPException(
             status_code=409,
             detail="Já existe outro produto com esse nome",
+        ) from exc
+    except ProductVersionConflictError as exc:
+        raise HTTPException(
+            status_code=409,
+            detail="Produto foi alterado por outra operação",
         ) from exc
     except ProductValidationError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc

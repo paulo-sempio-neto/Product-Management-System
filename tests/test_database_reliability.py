@@ -12,8 +12,18 @@ def test_failed_bulk_replace_rolls_back_original_products(setup_products):
     with pytest.raises(database.DatabaseDuplicateError):
         database.save_products(
             [
-                {"id": 10, "name": "Duplicate", "price": Decimal("1.00")},
-                {"id": 11, "name": "Duplicate", "price": Decimal("2.00")},
+                {
+                    "id": 10,
+                    "name": "Duplicate",
+                    "price": Decimal("1.00"),
+                    "version": 1,
+                },
+                {
+                    "id": 11,
+                    "name": "Duplicate",
+                    "price": Decimal("2.00"),
+                    "version": 1,
+                },
             ],
             setup_products,
         )
@@ -87,10 +97,20 @@ def test_service_classifies_write_failure(
 def test_product_removed_between_lookup_and_write_is_not_success(
     setup_products, monkeypatch, operation
 ):
-    monkeypatch.setattr(database, operation, lambda *_args, **_kwargs: False)
+    if operation == "update_product":
+        original_delete = database.delete_product
+
+        def delete_before_failed_update(*_args, **_kwargs):
+            original_delete(1, setup_products)
+            return False
+
+        monkeypatch.setattr(database, operation, delete_before_failed_update)
+    else:
+        monkeypatch.setattr(database, operation, lambda *_args, **_kwargs: False)
+
     with pytest.raises(product_service.ProductNotFoundError):
         if operation == "update_product":
-            product_service.update_product(1, "Changed", 12, setup_products)
+            product_service.update_product(1, "Changed", 12, 1, setup_products)
         else:
             product_service.delete_product(1, setup_products)
 

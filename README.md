@@ -312,6 +312,11 @@ The response is an object with `items`, `page`, `limit`, and `total`. The legacy
 `GET /products/search/?name=ar` route remains available and continues returning a
 plain product list for compatibility.
 
+Product responses include a `version` field. `PUT /products/{id}` requires the
+client's known `version`; if the stored version has changed, the API returns
+`409 Conflict` instead of silently overwriting another update. Successful updates
+increment the product version.
+
 Error responses retain `detail` and add `error.code`, for example:
 
 ```json
@@ -330,8 +335,9 @@ are preserved. Error schemas and route groups are included in OpenAPI.
 
 SQL parameters are bound rather than interpolated. Connections use explicit
 transactions, rollback on exceptions, and close after each operation. Unique-name
-violations are distinguished from other integrity failures. Update/delete checks
-detect a product removed between the initial lookup and the write. Explicit,
+violations are distinguished from other integrity failures. Updates use optimistic
+locking through the product `version`, and update/delete checks detect a product
+removed between the initial lookup and the write. Explicit,
 transactional schema upgrades are described in the
 [migration runbook](docs/database-evolution.md). Startup never upgrades legacy data.
 
@@ -340,8 +346,8 @@ Do not expose it to untrusted clients yet. Product listing is paginated, but
 request-body limits and rate limiting are not implemented. Those abuse protections
 need a separate compatibility and deployment design; disabling API docs is not
 access control. SQLite still serializes writers, and multi-step service operations
-are not a single transaction or protected by optimistic locking. These are
-explicit limits of the current portfolio baseline.
+are not a single transaction. These are explicit limits of the current portfolio
+baseline.
 
 ## Container Deployment
 
@@ -391,11 +397,13 @@ the existing `uvicorn api:app` entry point remains unchanged. Shared repository
 and API tests use a backend-parametrized fixture, currently containing only SQLite.
 SQLite schema, migration, and file-behavior tests remain backend-specific.
 
-Revision 2 stores product prices as integer cents in SQLite while the API and CLI
-continue to expose `price` in reais. It retains case-sensitive uniqueness, product
-IDs, and the autoincrement sequence. Older schemas using `price REAL` are upgraded
-only when existing prices are exactly representable with two decimal places; values
-that would require rounding are refused for manual repair.
+Revision 3 stores product prices as integer cents and adds a positive integer
+`version` for optimistic concurrency control. The API and CLI continue to expose
+`price` in reais. It retains case-sensitive uniqueness, product IDs, and the
+autoincrement sequence. Older schemas using `price REAL` are upgraded only when
+existing prices are exactly representable with two decimal places; values that
+would require rounding are refused for manual repair. Products migrated from older
+schemas start at `version = 1`.
 
 With all application writers stopped, inspect an existing file before upgrading:
 

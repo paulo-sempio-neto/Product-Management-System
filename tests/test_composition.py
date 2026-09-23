@@ -32,12 +32,20 @@ def test_configured_repository_keeps_path_and_timeout(tmp_path, monkeypatch):
         "id": product_id,
         "name": "First",
         "price": Decimal("1.23"),
+        "version": 1,
     }
     assert storage.find_by_name("First") == storage.get(product_id)
-    assert storage.update(product_id, "Updated", 200)
+    assert storage.update(product_id, "Updated", 200, 1)
     assert len(storage.list_products()) == 1
     assert storage.list_products_page(limit=10, offset=0) == {
-        "items": [{"id": product_id, "name": "Updated", "price": Decimal("2.00")}],
+        "items": [
+            {
+                "id": product_id,
+                "name": "Updated",
+                "price": Decimal("2.00"),
+                "version": 2,
+            }
+        ],
         "total": 1,
     }
     storage.check_health()
@@ -84,7 +92,7 @@ def test_application_uses_injected_storage_for_startup_and_requests(
 ):
     target = tmp_path / "unused.db"
     storage = create_autospec(ProductRepository, instance=True, spec_set=True)
-    product = {"id": 42, "name": "Injected", "price": Decimal("2.00")}
+    product = {"id": 42, "name": "Injected", "price": Decimal("2.00"), "version": 1}
     storage.list_products_page.return_value = {"items": [product], "total": 1}
 
     def forbid_default_storage(**_kwargs):

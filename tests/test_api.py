@@ -77,7 +77,7 @@ def test_list_products_with_pagination(seeded_api_client):
     response = seeded_api_client.get("/products?page=2&limit=2")
     assert response.status_code == 200
     assert response.json() == {
-        "items": [{"id": 3, "name": "Macarrão", "price": 5.0}],
+        "items": [{"id": 3, "name": "Macarrão", "price": 5.0, "version": 1}],
         "page": 2,
         "limit": 2,
         "total": 3,
@@ -88,7 +88,7 @@ def test_list_products_with_name_filter_and_pagination(seeded_api_client):
     response = seeded_api_client.get("/products?name=AR&page=1&limit=1")
     assert response.status_code == 200
     assert response.json() == {
-        "items": [{"id": 1, "name": "Arroz", "price": 12.0}],
+        "items": [{"id": 1, "name": "Arroz", "price": 12.0, "version": 1}],
         "page": 1,
         "limit": 1,
         "total": 2,
@@ -103,6 +103,7 @@ def test_create_product(api_client):
     assert response.status_code == 201
     assert response.json()["name"] == "Banana"
     assert response.json()["price"] == 5.0
+    assert response.json()["version"] == 1
     assert "id" in response.json()
 
 
@@ -137,6 +138,7 @@ def test_get_product_by_id(seeded_api_client):
     assert response.status_code == 200
     assert response.json()["name"] == "Arroz"
     assert response.json()["price"] == 12.0
+    assert response.json()["version"] == 1
 
 
 def test_get_product_not_found(seeded_api_client):
@@ -146,19 +148,41 @@ def test_get_product_not_found(seeded_api_client):
 
 
 def test_update_product(seeded_api_client):
+    product = seeded_api_client.get("/products/1").json()
     response = seeded_api_client.put(
         "/products/1",
-        json={"name": "Arroz Integral", "price": 15.0},
+        json={"name": "Arroz Integral", "price": 15.0, "version": product["version"]},
     )
     assert response.status_code == 200
     assert response.json()["name"] == "Arroz Integral"
     assert response.json()["price"] == 15.0
+    assert response.json()["version"] == 2
+
+
+def test_update_product_conflicts_with_stale_version(seeded_api_client):
+    product = seeded_api_client.get("/products/1").json()
+    first_update = seeded_api_client.put(
+        "/products/1",
+        json={"name": "Arroz Integral", "price": 15.0, "version": product["version"]},
+    )
+    assert first_update.status_code == 200
+
+    response = seeded_api_client.put(
+        "/products/1",
+        json={
+            "name": "Arroz Parboilizado",
+            "price": 16.0,
+            "version": product["version"],
+        },
+    )
+    assert response.status_code == 409
+    assert "alterado" in response.text
 
 
 def test_update_product_not_found(seeded_api_client):
     response = seeded_api_client.put(
         "/products/999",
-        json={"name": "Teste", "price": 10.0},
+        json={"name": "Teste", "price": 10.0, "version": 1},
     )
     assert response.status_code == 404
     assert "Produto não encontrado" in response.text

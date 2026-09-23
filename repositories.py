@@ -47,9 +47,16 @@ class SQLiteProductRepository:
             name, price_cents, self.database_path, settings=self.settings
         )
 
-    def update(self, product_id: int, name: str, price_cents: int) -> bool:
+    def update(
+        self, product_id: int, name: str, price_cents: int, expected_version: int
+    ) -> bool:
         return database.update_product(
-            product_id, name, price_cents, self.database_path, settings=self.settings
+            product_id,
+            name,
+            price_cents,
+            expected_version,
+            self.database_path,
+            settings=self.settings,
         )
 
     def delete(self, product_id: int) -> bool:

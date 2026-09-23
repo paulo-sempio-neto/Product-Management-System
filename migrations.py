@@ -7,9 +7,9 @@ from typing import Literal
 
 from persistence import DatabaseError
 
-CURRENT_VERSION = 2
+CURRENT_VERSION = 3
 MAX_PRICE = "92233720368547758.07"
-SchemaState = Literal["empty", "legacy", "revision_1", "current"]
+SchemaState = Literal["empty", "legacy", "revision_1", "revision_2", "current"]
 
 LEGACY_SCHEMA = """
 CREATE TABLE products (
@@ -34,7 +34,7 @@ CREATE TABLE products (
 )
 """
 
-PRODUCTS_SCHEMA = """
+PRODUCTS_SCHEMA_V2 = """
 CREATE TABLE products (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL CONSTRAINT uq_products_name UNIQUE,
@@ -46,6 +46,27 @@ CREATE TABLE products (
         typeof(price_cents) = 'integer'
         AND price_cents > 0
         AND price_cents <= 9223372036854775807
+    )
+)
+"""
+
+PRODUCTS_SCHEMA = """
+CREATE TABLE products (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL CONSTRAINT uq_products_name UNIQUE,
+    price_cents INTEGER NOT NULL,
+    version INTEGER NOT NULL DEFAULT 1,
+    CONSTRAINT ck_products_name CHECK (
+        typeof(name) = 'text' AND length(trim(name)) > 0
+    ),
+    CONSTRAINT ck_products_price_cents CHECK (
+        typeof(price_cents) = 'integer'
+        AND price_cents > 0
+        AND price_cents <= 9223372036854775807
+    ),
+    CONSTRAINT ck_products_version CHECK (
+        typeof(version) = 'integer'
+        AND version > 0
     )
 )
 """
@@ -97,12 +118,14 @@ def inspect_schema(connection: sqlite3.Connection) -> SchemaState:
     # tables could lose behavior. Refuse rather than silently discarding them.
     if len(objects) != 1:
         raise MigrationError("Customized legacy schema; manual review required")
+    if version == 2 and sql == _canonical(PRODUCTS_SCHEMA_V2):
+        return "revision_2"
     if version == 1 and sql == _canonical(PRODUCTS_SCHEMA_V1):
-        _validate_price_schema_rows(connection, "revision 2")
+        _validate_price_schema_rows(connection, "revision 3")
         return "revision_1"
     if version != 0 or sql != _canonical(LEGACY_SCHEMA):
         raise MigrationError("Unsupported schema/version; manual review required")
-    _validate_price_schema_rows(connection, "revision 2")
+    _validate_price_schema_rows(connection, "revision 3")
     return "legacy"
 
 
@@ -122,7 +145,7 @@ def initialize_schema(connection: sqlite3.Connection) -> None:
 
 
 def upgrade_schema(connection: sqlite3.Connection) -> None:
-    """Upgrade known product tables to revision 2, preserving rows and ID history.
+    """Upgrade known product tables to revision 3, preserving rows and ID history.
 
     The caller owns one transaction spanning inspection, copy, and version stamp.
     Any exception must roll back the entire transaction. Stop application writers
@@ -136,20 +159,26 @@ def upgrade_schema(connection: sqlite3.Connection) -> None:
     if state == "empty":
         initialize_schema(connection)
         return
-    if state not in {"legacy", "revision_1"}:
+    if state not in {"legacy", "revision_1", "revision_2"}:
         raise MigrationError("Unsupported schema/version; manual review required")
     sequence = connection.execute(
         "SELECT seq FROM sqlite_sequence WHERE name = 'products'"
     ).fetchone()
     connection.execute(
-        PRODUCTS_SCHEMA.replace("CREATE TABLE products", "CREATE TABLE products_v2")
+        PRODUCTS_SCHEMA.replace("CREATE TABLE products", "CREATE TABLE products_v3")
     )
-    connection.execute(
-        "INSERT INTO products_v2(id, name, price_cents) "
-        "SELECT id, name, CAST(round(price * 100) AS INTEGER) FROM products"
-    )
+    if state == "revision_2":
+        connection.execute(
+            "INSERT INTO products_v3(id, name, price_cents, version) "
+            "SELECT id, name, price_cents, 1 FROM products"
+        )
+    else:
+        connection.execute(
+            "INSERT INTO products_v3(id, name, price_cents, version) "
+            "SELECT id, name, CAST(round(price * 100) AS INTEGER), 1 FROM products"
+        )
     connection.execute("DROP TABLE products")
-    connection.execute("ALTER TABLE products_v2 RENAME TO products")
+    connection.execute("ALTER TABLE products_v3 RENAME TO products")
     if sequence is not None:
         connection.execute("DELETE FROM sqlite_sequence WHERE name = 'products'")
         connection.execute(

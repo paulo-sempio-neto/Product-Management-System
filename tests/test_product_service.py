@@ -16,7 +16,12 @@ def service_db(tmp_path):
 def test_create_product_normalizes_name_and_persists_product(service_db):
     product = product_service.create_product("  Mixed Case  ", 12, service_db)
 
-    assert product == {"id": 1, "name": "Mixed Case", "price": Decimal("12.00")}
+    assert product == {
+        "id": 1,
+        "name": "Mixed Case",
+        "price": Decimal("12.00"),
+        "version": 1,
+    }
     assert product_service.get_product(1, service_db) == product
 
 
@@ -51,11 +56,29 @@ def test_update_product_applies_shared_rules(service_db):
         product["id"],
         "  Updated  ",
         15.0,
+        product["version"],
         service_db,
     )
 
-    assert updated == {"id": 1, "name": "Updated", "price": Decimal("15.00")}
+    assert updated == {
+        "id": 1,
+        "name": "Updated",
+        "price": Decimal("15.00"),
+        "version": 2,
+    }
     assert product_service.get_product(1, service_db) == updated
+
+
+def test_update_product_rejects_stale_version(service_db):
+    product = product_service.create_product("Original", 10.0, service_db)
+    product_service.update_product(
+        product["id"], "Updated", 15.0, product["version"], service_db
+    )
+
+    with pytest.raises(product_service.ProductVersionConflictError):
+        product_service.update_product(
+            product["id"], "Stale", 20.0, product["version"], service_db
+        )
 
 
 def test_update_product_rejects_another_products_name(service_db):
@@ -67,13 +90,14 @@ def test_update_product_rejects_another_products_name(service_db):
             second["id"],
             first["name"],
             30.0,
+            second["version"],
             service_db,
         )
 
 
 def test_update_and_delete_report_missing_product(service_db):
     with pytest.raises(product_service.ProductNotFoundError):
-        product_service.update_product(999, "Missing", 10.0, service_db)
+        product_service.update_product(999, "Missing", 10.0, 1, service_db)
 
     with pytest.raises(product_service.ProductNotFoundError):
         product_service.delete_product(999, service_db)
@@ -93,7 +117,7 @@ def test_search_products_ignores_case_and_accents(service_db):
     product_service.create_product("Feijão", 8.0, service_db)
 
     assert product_service.search_products("FEIJAO", service_db) == [
-        {"id": 1, "name": "Feijão", "price": Decimal("8.00")}
+        {"id": 1, "name": "Feijão", "price": Decimal("8.00"), "version": 1}
     ]
 
 
@@ -109,8 +133,8 @@ def test_database_errors_are_translated(monkeypatch):
 
 def test_price_reports_use_shared_validation():
     products = [
-        {"id": 1, "name": "A", "price": Decimal("10.00")},
-        {"id": 2, "name": "B", "price": Decimal("20.00")},
+        {"id": 1, "name": "A", "price": Decimal("10.00"), "version": 1},
+        {"id": 2, "name": "B", "price": Decimal("20.00"), "version": 1},
     ]
 
     assert product_service.calculate_average_price(products) == Decimal("15.00")
@@ -126,7 +150,7 @@ def test_list_products_page_validates_pagination(service_db):
     assert product_service.list_products_page(
         service_db, page=2, limit=2, name=" "
     ) == {
-        "items": [{"id": 3, "name": "C", "price": Decimal("3.00")}],
+        "items": [{"id": 3, "name": "C", "price": Decimal("3.00"), "version": 1}],
         "page": 2,
         "limit": 2,
         "total": 3,

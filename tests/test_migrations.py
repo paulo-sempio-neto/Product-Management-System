@@ -41,7 +41,7 @@ def test_fresh_database_is_versioned_and_initialization_is_idempotent(tmp_path):
     assert snapshot(target) == before
     with database.get_connection(target, read_only=True) as connection:
         assert migrations.inspect_schema(connection) == "current"
-        assert connection.execute("PRAGMA user_version").fetchone() == (2,)
+        assert connection.execute("PRAGMA user_version").fetchone() == (3,)
 
 
 def test_legacy_startup_and_health_refuse_without_writes(legacy_db):
@@ -57,7 +57,7 @@ def test_explicit_upgrade_preserves_rows_and_deleted_id_history(legacy_db):
     with database.get_connection(legacy_db) as connection:
         migrations.upgrade_schema(connection)
     assert database.load_products(legacy_db) == [
-        {"id": 4, "name": "Precise", "price": Decimal("1.23")}
+        {"id": 4, "name": "Precise", "price": Decimal("1.23"), "version": 1}
     ]
     assert database.create_product("Next", 200, legacy_db) == 100
     current = snapshot(legacy_db)
@@ -180,7 +180,7 @@ def test_price_constraint_rejects_direct_insert_and_update(setup_products, price
     with pytest.raises(database.DatabaseIntegrityError):
         database.create_product("Invalid", price_cents, setup_products)
     with pytest.raises(database.DatabaseIntegrityError):
-        database.update_product(1, "Invalid", price_cents, setup_products)
+        database.update_product(1, "Invalid", price_cents, 1, setup_products)
     assert database.load_products(setup_products) == before
 
 
@@ -196,6 +196,7 @@ def test_exact_name_uniqueness_and_cent_prices_are_preserved(setup_products):
         assert database.find_product_by_id(product_id, setup_products)["price"] == (
             Decimal("1.23")
         )
+        assert database.find_product_by_id(product_id, setup_products)["version"] == 1
     with pytest.raises(database.DatabaseDuplicateError):
         database.create_product("Rice", 100, setup_products)
 
@@ -223,7 +224,7 @@ def test_schema_verification_preserves_whitespace_in_literals(
     target = str(tmp_path / "changed-check.db")
     with database.get_connection(target) as connection:
         connection.execute(migrations.PRODUCTS_SCHEMA.replace(original, changed))
-        connection.execute("PRAGMA user_version = 2")
+        connection.execute("PRAGMA user_version = 3")
     before = snapshot(target)
     with pytest.raises(migrations.MigrationError):
         database.check_health(target)
@@ -233,7 +234,12 @@ def test_schema_verification_preserves_whitespace_in_literals(
 
 
 @pytest.mark.parametrize(
-    "schema", [migrations.LEGACY_SCHEMA, migrations.PRODUCTS_SCHEMA_V1]
+    "schema",
+    [
+        migrations.LEGACY_SCHEMA,
+        migrations.PRODUCTS_SCHEMA_V1,
+        migrations.PRODUCTS_SCHEMA_V2,
+    ],
 )
 def test_known_old_schema_allows_external_whitespace_and_quoted_table_name(
     tmp_path, schema
@@ -246,6 +252,8 @@ def test_known_old_schema_allows_external_whitespace_and_quoted_table_name(
         connection.execute(formatted)
         if schema == migrations.PRODUCTS_SCHEMA_V1:
             connection.execute("PRAGMA user_version = 1")
+        if schema == migrations.PRODUCTS_SCHEMA_V2:
+            connection.execute("PRAGMA user_version = 2")
         migrations.upgrade_schema(connection)
     database.check_health(target)
     assert database.create_product("Unchanged", 123, target) == 1
@@ -258,7 +266,7 @@ def test_current_schema_allows_external_whitespace_and_quoted_table_name(tmp_pat
     ).replace(",\n", ",\n\n\t")
     with database.get_connection(target) as connection:
         connection.execute(formatted)
-        connection.execute("PRAGMA user_version = 2")
+        connection.execute("PRAGMA user_version = 3")
         migrations.upgrade_schema(connection)
     database.check_health(target)
     assert database.create_product("Unchanged", 123, target) == 1

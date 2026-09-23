@@ -62,6 +62,7 @@ def update_product() -> None:
         product_id,
         product["name"],
         new_price,
+        product["version"],
     )
 
     print(constants.SUCCESS_PRODUCT_UPDATED)

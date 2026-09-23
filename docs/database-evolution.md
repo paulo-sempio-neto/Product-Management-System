@@ -26,28 +26,30 @@ Its lifespan and HTTP dependencies use the same repository; importing the defaul
 and resolves the same factory when no repository is injected. SQL, connection
 handling, and SQLite settings remain inside the adapter boundary.
 
-Repository writes each own a transaction. Multiple service calls are still not one
-transaction: preflight duplicate/existence checks do not provide optimistic locking.
-Database uniqueness remains authoritative if a concurrent insert wins a race.
+Repository writes each own a transaction. Product updates use optimistic locking:
+callers send the version they read, SQLite updates only when that version still
+matches, and successful updates increment the version. Database uniqueness remains
+authoritative if a concurrent insert wins a race.
 
 ## Migration strategy
 
 This project has one table and no ORM. A small explicit SQLite runner is sufficient
 for controlled schema transitions without adding SQLAlchemy/Alembic merely to
 recreate the existing adapter. `PRAGMA user_version` is owned by this application
-and records revision 2. Earlier DDLs and their upgrades must stay immutable; future
+and records revision 3. Earlier DDLs and their upgrades must stay immutable; future
 changes require another ordered revision and tests from each supported predecessor.
 If ORM-backed PostgreSQL support is implemented later, adopt a backend-aware migration
 tool such as Alembic as part of that implementation, not as a second concurrent
 schema owner.
 
-Fresh empty databases initialize to revision 2 during startup. An existing database
+Fresh empty databases initialize to revision 3 during startup. An existing database
 is inspected first: the known pre-Phase-5 schema is `legacy`; a matching revision-1
-schema is `revision_1`; a matching revision-2 schema is `current`. Unexpected
-versions, altered tables, and legacy custom indexes, triggers, views, or additional
-tables require manual review. This deliberately conservative adoption policy may
-reject an equivalent manually authored schema. It never stamps an unknown schema
-merely because a table named `products` exists.
+schema is `revision_1`; a matching revision-2 schema is `revision_2`; a matching
+revision-3 schema is `current`. Unexpected versions, altered tables, and legacy
+custom indexes, triggers, views, or additional tables require manual review. This
+deliberately conservative adoption policy may reject an equivalent manually
+authored schema. It never stamps an unknown schema merely because a table named
+`products` exists.
 
 Schema verification compares SQL tokens, preserving whitespace and escaped quotes
 inside literals and boundaries between identifiers. Whitespace between tokens,
@@ -62,7 +64,7 @@ sequence restoration, and the revision stamp. Failure rolls everything back.
 Names, IDs, and deleted-ID sequence history are preserved. Legacy `price REAL`
 values are converted to integer cents only when they are exactly representable
 with two decimal places; values that would require rounding stop the upgrade for
-manual repair.
+manual repair. Rows migrated from older schemas start at `version = 1`.
 
 The table replacement follows SQLite's documented
 [generalized ALTER TABLE procedure](https://sqlite.org/lang_altertable.html#otheralter).
@@ -86,7 +88,7 @@ that storage is writable.
    backups outside the container and outside the source repository:
 
    ```powershell
-   Copy-Item -LiteralPath produtos.db -Destination produtos-before-v2.db
+   Copy-Item -LiteralPath produtos.db -Destination produtos-before-v3.db
    ```
 
    This project uses SQLite's default rollback journal. If journal mode has been
@@ -104,9 +106,9 @@ that storage is writable.
 
 There is no automatic downgrade. To roll back, stop all writers, preserve the failed
 database separately, restore the verified pre-upgrade backup, and run the matching
-previous application version. Revision-2 startup refuses a restored legacy or
-revision-1 file until it is explicitly upgraded. Restoring a backup discards
-subsequent writes, so decide recovery explicitly.
+previous application version. Revision-3 startup refuses a restored legacy,
+revision-1, or revision-2 file until it is explicitly upgraded. Restoring a backup
+discards subsequent writes, so decide recovery explicitly.
 
 ## Container upgrade
 
@@ -115,7 +117,7 @@ present, stop all writers and copy its database to a new backup destination:
 
 ```powershell
 docker compose stop api
-docker compose cp api:/data/products.db .\products-before-v2.db
+docker compose cp api:/data/products.db .\products-before-v3.db
 docker compose build api
 docker compose run --rm --no-deps api python -m migrations status --database /data/products.db
 docker compose run --rm --no-deps api python -m migrations upgrade --database /data/products.db
@@ -123,26 +125,28 @@ docker compose up -d api
 ```
 
 The one-off service uses the same volume and unprivileged user as the API.
-For an empty/new deployment, normal startup initializes revision 2; no upgrade
+For an empty/new deployment, normal startup initializes revision 3; no upgrade
 command is needed. These container commands require Docker and were not executed
 in the development workspace where Docker is unavailable.
 
 ## Modeling decisions
 
-| Concern | Revision 2 decision |
+| Concern | Revision 3 decision |
 |---|---|
-| Table/columns | Keep API/CLI `price`; store SQLite `products.id`, `products.name`, and `products.price_cents`. |
+| Table/columns | Keep API/CLI `price`; store SQLite `products.id`, `products.name`, `products.price_cents`, and `products.version`. |
 | IDs | Preserve signed 64-bit SQLite integer IDs and autoincrement history. |
 | Name equality | Preserve exact, case-sensitive, accent-sensitive uniqueness. `Rice` and `rice` are distinct. |
 | Name normalization | The service applies Python Unicode `strip()`. Storage additionally rejects non-text and empty/ASCII-space-only names; SQL `trim()` is not a replacement for Unicode normalization. |
 | Search | Preserve the existing Python case/accent normalization and substring search. |
 | Price | Convert accepted input to positive integer cents. Reject non-finite values, zero/negative values, values larger than signed 64-bit cents, and more than two decimal places. |
+| Version | Start products at version 1 and increment on every successful update. Reject stale update versions instead of overwriting silently. |
 | Indexes | The primary key and name-unique index already cover ID and exact-name lookups. Another name index would duplicate work. No ordinary index accelerates the current Python substring scan. |
 
 The API and CLI remain compatible at the boundary by accepting decimal-looking
-prices and returning `price` in reais. The service owns conversion to cents, so
-business rules avoid binary floating point for money. Migration refuses ambiguous
-legacy values instead of silently rounding existing data.
+prices and returning `price` in reais. The service owns conversion to cents and
+version validation, so business rules avoid binary floating point for money and
+protect clients from silent lost updates. Migration refuses ambiguous legacy
+values instead of silently rounding existing data.
 
 ## PostgreSQL preparation and acceptance criteria
 
@@ -163,6 +167,7 @@ driver, or migration runner is introduced in Phase 6A.
 | Integer autoincrement | `BIGINT GENERATED BY DEFAULT AS IDENTITY`; preserve imported IDs and advance the sequence beyond imported/deleted-ID history. |
 | `TEXT ... UNIQUE` with binary comparison | Text with deterministic case/accent-sensitive collation, e.g. `COLLATE "C"`; retain named unique constraint `uq_products_name`. |
 | SQLite `INTEGER` cents | `BIGINT` cents or `NUMERIC(12,2)` behind the same repository contract; avoid approximate floating point for money. |
+| SQLite positive `version` integer | Positive integer version checked in the update predicate and incremented atomically with the row update. |
 | `?` placeholders, lastrowid | Driver parameter binding and `INSERT ... RETURNING id`; no interpolated values. |
 | SQLite error codes | Translate only the name unique-constraint violation to `DatabaseDuplicateError`; other integrity/driver failures use the neutral error hierarchy. |
 | Missing update/delete | Return False from affected-row checks; never report a missing write as success. |

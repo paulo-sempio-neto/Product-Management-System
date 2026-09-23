@@ -41,13 +41,14 @@ class ProductCreate(BaseModel):
 
 
 class ProductUpdate(ProductCreate):
-    pass
+    version: int = Field(..., gt=0)
 
 
 class ProductResponse(BaseModel):
     id: int
     name: str
     price: Decimal
+    version: int
 
     @field_serializer("price", when_used="json")
     def serialize_price(self, value: Decimal) -> float:

@@ -84,7 +84,7 @@ def test_cli_database_default_respects_environment(monkeypatch, tmp_path):
     database.create_table()
     database.create_product("Configured", 200)
     assert database.load_products() == [
-        {"id": 1, "name": "Configured", "price": Decimal("2.00")}
+        {"id": 1, "name": "Configured", "price": Decimal("2.00"), "version": 1}
     ]
 
 

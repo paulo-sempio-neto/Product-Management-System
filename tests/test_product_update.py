@@ -6,11 +6,12 @@ def test_update_product_name_rules(api_client):
     assert first.status_code == 201
     assert second.status_code == 201
     product_id = second.json()["id"]
+    version = second.json()["version"]
 
     # Impede renomear o segundo produto com o nome do primeiro.
     response = api_client.put(
         f"/products/{product_id}",
-        json={"name": "Martelo", "price": 60.00},
+        json={"name": "Martelo", "price": 60.00, "version": version},
     )
 
     assert response.status_code == 409
@@ -21,14 +22,16 @@ def test_update_product_name_rules(api_client):
     assert saved.status_code == 200
     assert saved.json()["name"] == "Serrote"
     assert saved.json()["price"] == 50.00
+    assert saved.json()["version"] == version
 
     # Permite alterar o preço mantendo o nome do próprio produto.
     response = api_client.put(
         f"/products/{product_id}",
-        json={"name": "Serrote", "price": 60.00},
+        json={"name": "Serrote", "price": 60.00, "version": version},
     )
 
     assert response.status_code == 200
     saved = api_client.get(f"/products/{product_id}")
     assert saved.json()["name"] == "Serrote"
     assert saved.json()["price"] == 60.00
+    assert saved.json()["version"] == 2

@@ -21,7 +21,7 @@ def test_service_can_use_an_independent_repository(injected_repository):
     storage.find_by_name.return_value = None
     storage.create.return_value = 7
     product = product_service.create_product("  Café  ", "1.23", repository=storage)
-    assert product == {"id": 7, "name": "Café", "price": Decimal("1.23")}
+    assert product == {"id": 7, "name": "Café", "price": Decimal("1.23"), "version": 1}
     storage.create.assert_called_once_with("Café", 123)
     storage.get.return_value = product
     assert product_service.get_product(7, repository=storage) == product
@@ -39,9 +39,9 @@ def test_service_can_use_an_independent_repository(injected_repository):
     )
     assert product_service.search_products("CAFE", repository=storage) == [product]
     storage.update.return_value = True
-    updated = product_service.update_product(7, " New ", 2, repository=storage)
-    assert updated == {"id": 7, "name": "New", "price": Decimal("2.00")}
-    storage.update.assert_called_once_with(7, "New", 200)
+    updated = product_service.update_product(7, " New ", 2, 1, repository=storage)
+    assert updated == {"id": 7, "name": "New", "price": Decimal("2.00"), "version": 2}
+    storage.update.assert_called_once_with(7, "New", 200, 1)
     storage.delete.return_value = True
     assert product_service.delete_product(7, repository=storage) == product
     storage.delete.assert_called_once_with(7)
@@ -89,13 +89,15 @@ def test_adapter_obeys_repository_contract(product_repository):
     second = storage.create("first", 200)
     assert [p["id"] for p in storage.list_products()] == [first, second]
     assert storage.list_products_page(limit=1, offset=1) == {
-        "items": [{"id": second, "name": "first", "price": Decimal("2.00")}],
+        "items": [
+            {"id": second, "name": "first", "price": Decimal("2.00"), "version": 1}
+        ],
         "total": 2,
     }
     assert storage.list_products_page(limit=10, offset=0, name_filter="FIRST") == {
         "items": [
-            {"id": first, "name": "First", "price": Decimal("1.23")},
-            {"id": second, "name": "first", "price": Decimal("2.00")},
+            {"id": first, "name": "First", "price": Decimal("1.23"), "version": 1},
+            {"id": second, "name": "first", "price": Decimal("2.00"), "version": 1},
         ],
         "total": 2,
     }
@@ -103,14 +105,15 @@ def test_adapter_obeys_repository_contract(product_repository):
     assert storage.find_by_name("FIRST") is None
     with pytest.raises(DatabaseDuplicateError):
         storage.create("First", 300)
-    assert storage.update(first, "Updated", 300)
+    assert storage.update(first, "Updated", 300, 1)
     assert storage.get(first) == {
         "id": first,
         "name": "Updated",
         "price": Decimal("3.00"),
+        "version": 2,
     }
     assert storage.delete(first)
     assert storage.get(first) is None
-    assert not storage.update(first, "Gone", 100)
+    assert not storage.update(first, "Gone", 100, 2)
     assert not storage.delete(first)
     assert storage.get(2**100) is None

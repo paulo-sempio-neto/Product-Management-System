@@ -153,6 +153,7 @@ The CLI and API share `product_service.py` for product rules:
 - Names are trimmed while preserving their casing.
 - Empty names and non-positive, non-finite, or non-cent prices are rejected.
 - Duplicate names and missing products use explicit service errors.
+- Product updates require the caller's known version and reject stale writes.
 - The API maps service errors to HTTP responses.
 - The CLI maps service results and errors to Portuguese terminal messages.
 
@@ -163,9 +164,10 @@ Pydantic still validates API request shapes at the HTTP boundary, while
 
 `database.py` uses Python's built-in `sqlite3` module. The `products` table keeps
 an integer autoincrement primary key, an exactly unique text name, and an integer
-`price_cents` value. Revision 2 stores money as cents with named checks for
-nonblank text names and positive integer-cent prices. The immutable revision DDLs
-are in `migrations.py`; the SQLite `user_version` header records its revision. See
+`price_cents` value plus a positive integer `version`. Revision 3 stores money as
+cents and supports optimistic update checks with named constraints for nonblank
+text names, positive integer-cent prices, and positive versions. The immutable
+revision DDLs are in `migrations.py`; the SQLite `user_version` header records its revision. See
 [Database evolution](docs/database-evolution.md) for upgrade and modeling details.
 
 The default application database is `produtos.db`. Local `.db`, `.sqlite`,
@@ -242,8 +244,8 @@ probe. The database context owns commit/rollback and connection closure. All SQL
 for CRUD and paginated listing stays in `database.py`, with versioned DDL in
 `migrations.py`. Listing pages use SQL `COUNT`, `LIMIT`, and `OFFSET` instead of
 loading every product when the API only needs one page. Write row counts detect
-products removed after a service lookup, and only unique-name failures translate
-to duplicate-product errors.
+stale update versions or products removed after a service lookup, and only
+unique-name failures translate to duplicate-product errors.
 
 The new configuration, readiness, security, and database-reliability tests use
 temporary databases. The full suite still includes every prior test. CI includes

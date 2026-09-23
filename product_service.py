@@ -43,6 +43,10 @@ class DuplicateProductError(ProductServiceError):
     """Raised when another product already uses the requested name."""
 
 
+class ProductVersionConflictError(ProductServiceError):
+    """Raised when the client update version is older than stored data."""
+
+
 class ProductPersistenceError(ProductServiceError):
     """Raised when product data cannot be read or persisted."""
 
@@ -156,6 +160,7 @@ def create_product(
         "id": product_id,
         "name": normalized_name,
         "price": normalized_price,
+        "version": 1,
     }
 
 
@@ -212,15 +217,17 @@ def update_product(
     product_id: int,
     name: str,
     price: object,
+    version: object,
     db_name: DatabasePath = None,
     *,
     repository: ProductRepository | None = None,
 ) -> Product:
     storage = _repository(db_name, repository)
-    get_product(product_id, repository=storage)
+    stored_product = get_product(product_id, repository=storage)
     normalized_name = normalize_product_name(name)
     price_cents = validate_price_cents(price)
     normalized_price = price_from_cents(price_cents)
+    expected_version = _validate_version(version)
 
     product_with_same_name = storage.find_by_name(normalized_name)
     if (
@@ -233,13 +240,17 @@ def update_product(
         product_id,
         normalized_name,
         price_cents,
+        expected_version,
     )
     if not updated:
+        if storage.get(product_id) is not None:
+            raise ProductVersionConflictError
         raise ProductNotFoundError
     return {
         "id": product_id,
         "name": normalized_name,
         "price": normalized_price,
+        "version": stored_product["version"] + 1,
     }
 
 
@@ -312,6 +323,14 @@ def _validate_positive_int(value: int, label: str) -> int:
         raise ProductValidationError(f"{label} must be an integer")
     if value <= 0:
         raise ProductValidationError(f"{label} must be greater than zero")
+    return value
+
+
+def _validate_version(value: object) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ProductValidationError("Product version must be an integer")
+    if value <= 0:
+        raise ProductValidationError("Product version must be greater than zero")
     return value
 
 

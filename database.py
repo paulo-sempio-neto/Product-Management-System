@@ -81,11 +81,12 @@ def _price_to_cents(price: Decimal) -> int:
     return int(cents)
 
 
-def _product_from_row(row: tuple[int, str, int]) -> Product:
+def _product_from_row(row: tuple[int, str, int, int]) -> Product:
     return {
         "id": row[0],
         "name": row[1],
         "price": _price_from_cents(row[2]),
+        "version": row[3],
     }
 
 
@@ -108,8 +109,8 @@ def create_product(
     with get_connection(db_name, settings=settings) as connection:
         cursor = connection.execute(
             """
-            INSERT INTO products (name, price_cents)
-            VALUES (?, ?)
+            INSERT INTO products (name, price_cents, version)
+            VALUES (?, ?, 1)
             """,
             (name, price_cents),
         )
@@ -127,6 +128,7 @@ def update_product(
     product_id: int,
     name: str,
     price_cents: int,
+    expected_version: int,
     db_name: DatabasePath = None,
     *,
     settings: Settings | None = None,
@@ -136,10 +138,10 @@ def update_product(
         cursor = connection.execute(
             """
             UPDATE products
-            SET name = ?, price_cents = ?
-            WHERE id = ?
+            SET name = ?, price_cents = ?, version = version + 1
+            WHERE id = ? AND version = ?
             """,
-            (name, price_cents, product_id),
+            (name, price_cents, product_id, expected_version),
         )
         return cursor.rowcount == 1
 
@@ -168,7 +170,7 @@ def load_products(
     """Return all products in deterministic ID order."""
     with get_connection(db_name, settings=settings) as connection:
         rows = connection.execute(
-            "SELECT id, name, price_cents FROM products ORDER BY id"
+            "SELECT id, name, price_cents, version FROM products ORDER BY id"
         ).fetchall()
     return [_product_from_row(row) for row in rows]
 
@@ -198,7 +200,7 @@ def load_products_page(
         )
         rows = connection.execute(
             f"""
-            SELECT id, name, price_cents
+            SELECT id, name, price_cents, version
             FROM products
             {where_clause}
             ORDER BY id
@@ -214,9 +216,14 @@ def save_products(products: list[Product], db_name: DatabasePath = None) -> None
     with get_connection(db_name) as connection:
         connection.execute("DELETE FROM products")
         connection.executemany(
-            "INSERT INTO products (id, name, price_cents) VALUES (?, ?, ?)",
+            "INSERT INTO products (id, name, price_cents, version) VALUES (?, ?, ?, ?)",
             [
-                (product["id"], product["name"], _price_to_cents(product["price"]))
+                (
+                    product["id"],
+                    product["name"],
+                    _price_to_cents(product["price"]),
+                    product["version"],
+                )
                 for product in products
             ],
         )
@@ -233,7 +240,7 @@ def find_product_by_id(
         return None
     with get_connection(db_name, settings=settings) as connection:
         row = connection.execute(
-            "SELECT id, name, price_cents FROM products WHERE id = ?",
+            "SELECT id, name, price_cents, version FROM products WHERE id = ?",
             (product_id,),
         ).fetchone()
     return None if row is None else _product_from_row(row)
@@ -248,7 +255,7 @@ def find_product_by_name(
     """Find a product by its exact stored name."""
     with get_connection(db_name, settings=settings) as connection:
         row = connection.execute(
-            "SELECT id, name, price_cents FROM products WHERE name = ?",
+            "SELECT id, name, price_cents, version FROM products WHERE name = ?",
             (name,),
         ).fetchone()
     return None if row is None else _product_from_row(row)
