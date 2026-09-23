@@ -22,6 +22,7 @@ frontend/*.tsbuildinfo
 .env
 .env.*
 !.env.example
+!frontend/.env.production
 
 # Banco de dados
 *.db
