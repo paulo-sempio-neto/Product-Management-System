@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import {
   ApiRequestError,
   createProduct,
+  deleteProduct,
   listProducts,
   updateProduct,
 } from "./api/products";
@@ -47,6 +48,13 @@ export default function App() {
   const [updateSuccessMessage, setUpdateSuccessMessage] = useState<
     string | null
   >(null);
+  const [deletingProductId, setDeletingProductId] = useState<number | null>(
+    null,
+  );
+  const [deleteMessage, setDeleteMessage] = useState<string | null>(null);
+  const [deleteErrorMessage, setDeleteErrorMessage] = useState<string | null>(
+    null,
+  );
 
   useEffect(() => {
     let shouldIgnore = false;
@@ -172,6 +180,53 @@ export default function App() {
     }
   }
 
+  async function handleDeleteProduct(product: Product) {
+    const shouldDelete = window.confirm(
+      `Tem certeza que deseja excluir o produto "${product.name}"?`,
+    );
+
+    if (!shouldDelete) {
+      return;
+    }
+
+    setDeletingProductId(product.id);
+    setDeleteMessage(null);
+    setDeleteErrorMessage(null);
+
+    try {
+      await deleteProduct(product.id);
+      setDeleteMessage(`Produto "${product.name}" excluído com sucesso.`);
+
+      if (editingProduct?.id === product.id) {
+        handleCancelEdit();
+      }
+
+      const isLastItemOnPage = productsPage.items.length === 1;
+      const shouldGoBackOnePage = page > 1 && isLastItemOnPage;
+
+      if (shouldGoBackOnePage) {
+        setPage((current) => current - 1);
+      } else {
+        setRefreshKey((current) => current + 1);
+      }
+    } catch (error) {
+      if (error instanceof ApiRequestError && error.status === 404) {
+        setDeleteErrorMessage(
+          "Produto não encontrado. Ele pode já ter sido removido por outra operação.",
+        );
+        setRefreshKey((current) => current + 1);
+      } else {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Não foi possível excluir o produto.";
+        setDeleteErrorMessage(message);
+      }
+    } finally {
+      setDeletingProductId(null);
+    }
+  }
+
   return (
     <main className="app-shell">
       <section className="page-header">
@@ -219,6 +274,18 @@ export default function App() {
           onSearch={handleSearch}
         />
 
+        {deleteMessage && (
+          <p className="status-message success" role="status">
+            {deleteMessage}
+          </p>
+        )}
+
+        {deleteErrorMessage && (
+          <p className="status-message error" role="alert">
+            {deleteErrorMessage}
+          </p>
+        )}
+
         {isLoading && <p className="status-message">Carregando produtos...</p>}
 
         {errorMessage && !isLoading && (
@@ -237,7 +304,9 @@ export default function App() {
         {!isLoading && !errorMessage && productsPage.items.length > 0 && (
           <ProductTable
             products={productsPage.items}
+            deletingProductId={deletingProductId}
             onEdit={handleSelectProductToEdit}
+            onDelete={handleDeleteProduct}
           />
         )}
 

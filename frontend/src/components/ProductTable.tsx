@@ -3,6 +3,8 @@ import type { Product } from "../types/product";
 type ProductTableProps = {
   products: Product[];
   onEdit: (product: Product) => void;
+  onDelete: (product: Product) => void;
+  deletingProductId: number | null;
 };
 
 const currencyFormatter = new Intl.NumberFormat("pt-BR", {
@@ -10,7 +12,12 @@ const currencyFormatter = new Intl.NumberFormat("pt-BR", {
   currency: "BRL",
 });
 
-export default function ProductTable({ products, onEdit }: ProductTableProps) {
+export default function ProductTable({
+  products,
+  onEdit,
+  onDelete,
+  deletingProductId,
+}: ProductTableProps) {
   return (
     <div className="table-wrapper">
       <table className="product-table">
@@ -31,13 +38,26 @@ export default function ProductTable({ products, onEdit }: ProductTableProps) {
               <td>{currencyFormatter.format(product.price)}</td>
               <td>{product.version}</td>
               <td>
-                <button
-                  type="button"
-                  className="secondary compact"
-                  onClick={() => onEdit(product)}
-                >
-                  Editar
-                </button>
+                <div className="table-actions">
+                  <button
+                    type="button"
+                    className="secondary compact"
+                    disabled={deletingProductId === product.id}
+                    onClick={() => onEdit(product)}
+                  >
+                    Editar
+                  </button>
+                  <button
+                    type="button"
+                    className="danger compact"
+                    disabled={deletingProductId === product.id}
+                    onClick={() => onDelete(product)}
+                  >
+                    {deletingProductId === product.id
+                      ? "Excluindo..."
+                      : "Excluir"}
+                  </button>
+                </div>
               </td>
             </tr>
           ))}

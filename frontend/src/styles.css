@@ -54,6 +54,16 @@ button.secondary:hover:not(:disabled) {
   background: #f1f5f9;
 }
 
+button.danger {
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+button.danger:hover:not(:disabled) {
+  background: #fee2e2;
+}
+
 button.compact {
   padding: 0.5rem 0.75rem;
 }
@@ -218,6 +228,11 @@ h2 {
   color: #991b1b;
 }
 
+.status-message.success {
+  background: #ecfdf5;
+  color: #047857;
+}
+
 .table-wrapper {
   overflow-x: auto;
 }
@@ -238,6 +253,13 @@ h2 {
 .product-table th:last-child,
 .product-table td:last-child {
   text-align: right;
+}
+
+.table-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
 }
 
 .product-table th {
