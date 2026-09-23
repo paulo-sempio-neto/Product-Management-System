@@ -72,7 +72,7 @@ def create_app(
         summary="Product CRUD with a shared API/CLI service and SQLite persistence",
         responses={
             status: {"model": ErrorResponse}
-            for status in (400, 404, 405, 422, 500, 503)
+            for status in (400, 404, 405, 409, 422, 500, 503)
         },
         openapi_tags=[
             {"name": "products", "description": "Product management and name search"},
@@ -121,10 +121,7 @@ def list_all_products(repository: ProductStorage) -> list[Product]:
 )
 def search_products(name: str, repository: ProductStorage) -> list[Product]:
     """Busca produtos por parte do nome"""
-    result = search_products_service(name, repository=repository)
-    if not result:
-        raise HTTPException(status_code=404, detail="Nenhum produto encontrado")
-    return result
+    return search_products_service(name, repository=repository)
 
 
 @router.get("/products/{product_id}", response_model=ProductResponse, tags=["products"])
@@ -150,7 +147,7 @@ def create_product(product: ProductCreate, repository: ProductStorage) -> Produc
         )
     except DuplicateProductError as exc:
         raise HTTPException(
-            status_code=400,
+            status_code=409,
             detail="Produto já cadastrado",
         ) from exc
     except ProductValidationError as exc:
@@ -177,7 +174,7 @@ def update_product(
         ) from exc
     except DuplicateProductError as exc:
         raise HTTPException(
-            status_code=400,
+            status_code=409,
             detail="Já existe outro produto com esse nome",
         ) from exc
     except ProductValidationError as exc:

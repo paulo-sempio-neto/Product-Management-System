@@ -55,10 +55,10 @@ def test_duplicate_error_keeps_existing_contract(api_client):
     product = {"name": "Duplicate", "price": 2}
     api_client.post("/products", json=product)
     response = api_client.post("/products", json=product)
-    assert response.status_code == 400
+    assert response.status_code == 409
     assert response.json() == {
         "detail": "Produto já cadastrado",
-        "error": {"code": "bad_request"},
+        "error": {"code": "conflict"},
     }
 
 

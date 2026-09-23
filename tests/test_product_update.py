@@ -13,7 +13,7 @@ def test_update_product_name_rules(api_client):
         json={"name": "Martelo", "price": 60.00},
     )
 
-    assert response.status_code == 400
+    assert response.status_code == 409
     assert response.json()["detail"] == ("Já existe outro produto com esse nome")
 
     # Confirma que a tentativa rejeitada não alterou os dados.

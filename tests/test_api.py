@@ -86,7 +86,7 @@ def test_create_product_duplicate(api_client):
         "/products",
         json={"name": "Banana", "price": 10.0},
     )
-    assert response.status_code == 400
+    assert response.status_code == 409
     assert "Produto já cadastrado" in response.text
 
 
@@ -161,5 +161,5 @@ def test_search_products(seeded_api_client):
 
 def test_search_products_not_found(seeded_api_client):
     response = seeded_api_client.get("/products/search/?name=xyz")
-    assert response.status_code == 404
-    assert "Nenhum produto encontrado" in response.text
+    assert response.status_code == 200
+    assert response.json() == []
