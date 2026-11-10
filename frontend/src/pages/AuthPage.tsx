@@ -6,6 +6,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { AuthError, EMAIL_PATTERN, measurePassword } from "../auth/authService";
 import Button from "../components/ui/Button";
+import ErrorBoundary from "../components/ui/ErrorBoundary";
 import Field from "../components/ui/Field";
 import Logo from "../components/ui/Logo";
 
@@ -55,6 +56,12 @@ export default function AuthPage({ mode }: { mode: Mode }) {
   const [done, setDone] = useState(false);
   const [curtain, setCurtain] = useState<{ x: number; y: number } | null>(null);
   const submitRef = useRef<HTMLButtonElement>(null);
+
+  // Warm up the dashboard bundle while the person fills in the form.
+  useEffect(() => {
+    const idle = window.requestIdleCallback ?? ((cb: () => void) => window.setTimeout(cb, 1200));
+    idle(() => void import("./DashboardPage"));
+  }, []);
 
   useEffect(() => {
     setErrors({});
@@ -120,9 +127,11 @@ export default function AuthPage({ mode }: { mode: Mode }) {
 
         <div className="auth__scene">
           {webgl ? (
-            <Suspense fallback={<div className="auth__scene-fallback" />}>
-              <ShelfScene />
-            </Suspense>
+            <ErrorBoundary fallback={<div className="auth__scene-fallback" />}>
+              <Suspense fallback={<div className="auth__scene-fallback" />}>
+                <ShelfScene />
+              </Suspense>
+            </ErrorBoundary>
           ) : (
             <div className="auth__scene-fallback" />
           )}
@@ -141,10 +150,6 @@ export default function AuthPage({ mode }: { mode: Mode }) {
 
       <section className="auth__panel">
         <div className="auth__panel-inner">
-          <div className="auth__mobile-brand">
-            <Logo />
-          </div>
-
           <LayoutGroup>
             <nav className="auth__switch" aria-label="Escolha como continuar">
               {(["signup", "login"] as const).map((item) => (
@@ -257,7 +262,7 @@ export default function AuthPage({ mode }: { mode: Mode }) {
               <p className="auth__alt">
                 {isSignup ? "Já tem conta? " : "Ainda não tem conta? "}
                 <Link to={isSignup ? "/entrar" : "/cadastro"} replace state={location.state}>
-                  {isSignup ? "Entrar" : "Criar conta grátis"}
+                  {isSignup ? "Entrar" : "Criar conta"}
                 </Link>
               </p>
               {isSignup && <p className="auth__note">Sua conta fica salva neste navegador.</p>}

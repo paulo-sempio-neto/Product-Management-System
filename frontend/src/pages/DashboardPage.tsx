@@ -5,6 +5,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 
 import { ApiRequestError, createProduct, deleteProduct } from "../api/products";
 import { useAuth } from "../auth/AuthContext";
+import CommandPalette from "../components/dashboard/CommandPalette";
 import PaginationBar from "../components/dashboard/PaginationBar";
 import ProductDrawer, { type DrawerState } from "../components/dashboard/ProductDrawer";
 import ProductList, { ProductListSkeleton } from "../components/dashboard/ProductList";
@@ -42,6 +43,7 @@ export default function DashboardPage() {
   const [confirming, setConfirming] = useState<Product | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [freshId, setFreshId] = useState<number | null>(null);
+  const [paletteOpen, setPaletteOpen] = useState(false);
   const [slowServer, setSlowServer] = useState(false);
   const [arrival] = useState(() => Boolean((location.state as { welcome?: string } | null)?.welcome));
 
@@ -71,6 +73,12 @@ export default function DashboardPage() {
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        if (!drawer && !confirming) setPaletteOpen((value) => !value);
+        return;
+      }
+      if (paletteOpen) return;
       const target = event.target as HTMLElement;
       const typing = target.closest("input, textarea, [contenteditable]");
       if (typing || drawer || confirming) return;
@@ -84,9 +92,12 @@ export default function DashboardPage() {
     }
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [drawer, confirming]);
+  }, [drawer, confirming, paletteOpen]);
 
   const closeDrawer = useCallback(() => setDrawer(null), []);
+  const closePalette = useCallback(() => setPaletteOpen(false), []);
+  const openCreate = useCallback(() => setDrawer({ mode: "create" }), []);
+  const openEdit = useCallback((product: Product) => setDrawer({ mode: "edit", product }), []);
 
   function handleSaved(product: Product, mode: "create" | "edit") {
     setDrawer(null);
@@ -150,9 +161,12 @@ export default function DashboardPage() {
 
   return (
     <div className="dash">
-      <Topbar user={session.user} onLogout={logout} />
+      <a className="skip-link" href="#conteudo">
+        Pular para o conteúdo
+      </a>
+      <Topbar user={session.user} onLogout={logout} onOpenPalette={() => setPaletteOpen(true)} />
 
-      <main className="dash__main">
+      <main id="conteudo" className="dash__main" tabIndex={-1}>
         <motion.section
           className="dash__hero"
           initial={reduce ? false : { opacity: 0, y: 16 }}
@@ -251,6 +265,8 @@ export default function DashboardPage() {
           {!error && <PaginationBar page={data.page} limit={data.limit || PAGE_SIZE} total={data.total} disabled={loading} onChange={setPage} />}
         </motion.section>
       </main>
+
+      <CommandPalette open={paletteOpen} onClose={closePalette} onCreate={openCreate} onEdit={openEdit} onLogout={logout} />
 
       <ProductDrawer state={drawer} onClose={closeDrawer} onSaved={handleSaved} />
 

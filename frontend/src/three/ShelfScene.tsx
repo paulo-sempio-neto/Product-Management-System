@@ -298,9 +298,23 @@ function SceneContents() {
 }
 
 export default function ShelfScene() {
+  const wrapper = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(true);
+
+  // Stop rendering when the stage scrolls out of view (saves battery on phones).
+  useEffect(() => {
+    const node = wrapper.current;
+    if (!node || !("IntersectionObserver" in window)) return;
+    const observer = new IntersectionObserver(([entry]) => setVisible(entry.isIntersecting), { threshold: 0.05 });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
   return (
+    <div ref={wrapper} className="shelf-wrapper">
     <Canvas
       className="shelf-canvas"
+      frameloop={visible ? "always" : "never"}
       shadows
       dpr={[1, 2]}
       camera={{ position: [0, 0.6, 15], fov: 34 }}
@@ -309,5 +323,6 @@ export default function ShelfScene() {
     >
       <SceneContents />
     </Canvas>
+    </div>
   );
 }

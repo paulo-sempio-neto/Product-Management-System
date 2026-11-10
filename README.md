@@ -28,6 +28,67 @@ control for product updates.
   />
 </p>
 
+## 🖥 Web App — Gôndola
+
+The `frontend/` folder ships **Gôndola**, a React web app for the API: account
+screens with an interactive 3D scene and a product dashboard built around the
+yellow shelf price tag.
+
+<p align="center">
+  <img src="./assets/screenshots/signup.png" alt="Sign-up screen with a 3D store shelf" width="100%" />
+</p>
+
+<table>
+  <tr>
+    <td><img src="./assets/screenshots/dashboard.png" alt="Product dashboard" /></td>
+    <td><img src="./assets/screenshots/drawer.png" alt="Create product drawer with live preview" /></td>
+  </tr>
+  <tr>
+    <td><img src="./assets/screenshots/palette.png" alt="Command palette" /></td>
+    <td align="center"><img src="./assets/screenshots/mobile.png" alt="Dashboard on a phone" width="45%" /></td>
+  </tr>
+</table>
+
+**Highlights**
+
+- Sign-up and sign-in screens with a React Three Fiber scene: products drop onto a
+  store shelf with squash-and-stretch physics, react to the pointer and hop when
+  clicked; the camera fits any screen size and rendering pauses off-screen
+- Dashboard with animated totals, a catalog-wide price histogram, paginated
+  product list, debounced search and highlighted recent changes
+- Create/edit drawer with a live price-tag preview, Brazilian price input
+  (`12,90`) and a clear recovery path for `409 Conflict` version clashes
+- Delete confirmation with **Undo**, toast notifications, empty and error states,
+  and a notice while the free-tier server wakes up
+- Command palette (`Ctrl/⌘ K`) plus `/` (search) and `N` (new product) shortcuts
+- Accessible overlays (focus trap, `Esc`, focus return), skip link, visible
+  focus rings and full `prefers-reduced-motion` support
+- Route-level code splitting with long-lived vendor chunks; the 3D engine only
+  loads on the account screens
+
+**Stack:** React 19, TypeScript, Vite, React Router, React Three Fiber + drei
+(Three.js), Motion, Lucide icons, self-hosted Bricolage Grotesque and
+Instrument Sans.
+
+> **Accounts are local for now.** The API has no authentication endpoints yet, so
+> accounts and sessions are stored in the browser (passwords are salted and
+> hashed with SHA-256 before storage). This is a product-demo gate, not a security
+> boundary. All auth calls live in `frontend/src/auth/authService.ts`, so moving
+> to real endpoints only requires changing that file.
+
+### Run the web app
+
+```bash
+cd frontend
+npm install
+npm run dev        # http://localhost:5173, proxies /api to http://127.0.0.1:8000
+npm run build      # type-check and production build into frontend/dist
+```
+
+Set `VITE_API_BASE_URL` to point the app at a deployed API (see
+`frontend/.env.example`). On Vercel, `frontend/vercel.json` rewrites every route
+to `index.html` so deep links like `/painel` work on refresh.
+
 ## 🚀 Current Features
 
 - Product creation, listing, lookup, update, and deletion
@@ -202,9 +263,8 @@ This project is intended to demonstrate and improve:
 
 - Expand operational observability
 - Expand validation and database integrity rules
-- Add authentication and authorization
+- Add authentication and authorization, and connect the web app to it
 - Add product categories and inventory information
-- Create a frontend interface
 - Publish the existing container image and automate deployment
 - Add production infrastructure such as TLS termination and monitoring
 

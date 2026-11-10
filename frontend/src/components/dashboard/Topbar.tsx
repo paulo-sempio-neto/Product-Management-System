@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "motion/react";
-import { ChevronDown, LogOut } from "lucide-react";
+import { ChevronDown, LogOut, Search } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import type { User } from "../../auth/authService";
@@ -14,7 +14,11 @@ function initials(name: string) {
     .join("");
 }
 
-export default function Topbar({ user, onLogout }: { user: User; onLogout: () => void }) {
+const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
+
+type TopbarProps = { user: User; onLogout: () => void; onOpenPalette: () => void };
+
+export default function Topbar({ user, onLogout, onOpenPalette }: TopbarProps) {
   const [open, setOpen] = useState(false);
   const menu = useRef<HTMLDivElement>(null);
 
@@ -37,6 +41,11 @@ export default function Topbar({ user, onLogout }: { user: User; onLogout: () =>
     <header className="topbar">
       <div className="topbar__inner">
         <Logo />
+        <button type="button" className="topbar__palette" onClick={onOpenPalette} aria-keyshortcuts={isMac ? "Meta+K" : "Control+K"}>
+          <Search size={16} aria-hidden="true" />
+          <span>Buscar ou executar</span>
+          <kbd aria-hidden="true">{isMac ? "⌘" : "Ctrl"} K</kbd>
+        </button>
         <div className="account" ref={menu}>
           <button
             type="button"

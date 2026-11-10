@@ -83,10 +83,6 @@
   width: 100%;
   max-width: 440px;
 }
-.auth__mobile-brand {
-  display: none;
-  margin-bottom: var(--s-6);
-}
 .auth__switch {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -207,3 +203,25 @@
   }
 }
 
+.shelf-wrapper {
+  position: absolute;
+  inset: 0;
+}
+.page-loader {
+  display: grid;
+  place-items: center;
+  min-height: 100dvh;
+}
+.page-loader .logo {
+  animation: loader-pulse 1.1s var(--ease-out) infinite alternate;
+}
+@keyframes loader-pulse {
+  from {
+    opacity: 0.35;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-2px);
+  }
+}
