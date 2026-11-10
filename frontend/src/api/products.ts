@@ -92,6 +92,10 @@ export function listProducts(
   return request<ProductListResponse>(`/products${suffix}`);
 }
 
+export function getProduct(productId: number): Promise<Product> {
+  return request<Product>(`/products/${productId}`);
+}
+
 export function createProduct(input: ProductCreateInput): Promise<Product> {
   return request<Product>("/products", {
     method: "POST",
