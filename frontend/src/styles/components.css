@@ -1,0 +1,297 @@
+/* ---------- Logo ---------- */
+.logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: var(--ink);
+}
+.logo--light {
+  color: #fff;
+}
+.logo__name {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+/* ---------- Buttons ---------- */
+.btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background-color var(--dur-2) var(--ease-out),
+    border-color var(--dur-2) var(--ease-out),
+    box-shadow var(--dur-2) var(--ease-out),
+    color var(--dur-2) var(--ease-out);
+}
+.btn:disabled {
+  cursor: not-allowed;
+}
+.btn--sm {
+  min-height: 34px;
+  padding: 0 0.75rem;
+  font-size: var(--step--1);
+}
+.btn--md {
+  min-height: 42px;
+  padding: 0 1rem;
+}
+.btn--lg {
+  min-height: 52px;
+  padding: 0 1.4rem;
+  font-size: var(--step-1);
+}
+.btn--primary {
+  background: var(--cobalt);
+  color: #fff;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 18%),
+    0 6px 16px -6px rgb(43 75 255 / 60%);
+}
+.btn--primary:hover:not(:disabled) {
+  background: var(--cobalt-deep);
+}
+.btn--primary:disabled:not([aria-busy]) {
+  background: var(--line-strong);
+  box-shadow: none;
+}
+.btn--ghost {
+  background: var(--surface);
+  border-color: var(--line);
+  color: var(--ink);
+  box-shadow: var(--shadow-1);
+}
+.btn--ghost:hover:not(:disabled) {
+  border-color: var(--line-strong);
+  background: var(--surface-sunk);
+}
+.btn--quiet {
+  background: transparent;
+  color: var(--ink-soft);
+}
+.btn--quiet:hover:not(:disabled) {
+  background: var(--fog-deep);
+  color: var(--ink);
+}
+.btn--danger {
+  background: var(--coral);
+  color: #fff;
+  box-shadow: 0 6px 16px -6px rgb(255 90 95 / 60%);
+}
+.btn--danger:hover:not(:disabled) {
+  background: var(--coral-deep);
+}
+.btn__content {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: opacity var(--dur-1);
+}
+.btn__content.is-hidden {
+  opacity: 0;
+}
+.btn__spinner,
+.btn__done {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+}
+.btn__spinner {
+  width: 20px;
+  height: 20px;
+  border: 2.5px solid rgb(255 255 255 / 35%);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+.btn--ghost .btn__spinner,
+.btn--quiet .btn__spinner {
+  border-color: var(--line);
+  border-top-color: var(--cobalt);
+}
+.btn__done {
+  display: grid;
+  place-items: center;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ---------- Fields ---------- */
+.field {
+  display: grid;
+  gap: 0.4rem;
+  min-width: 0;
+}
+.field__label {
+  font-size: var(--step--1);
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+.field__control {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.field__icon {
+  position: absolute;
+  left: 0.85rem;
+  display: grid;
+  color: var(--slate);
+  pointer-events: none;
+  transition: color var(--dur-2);
+}
+.field__input {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 0.95rem;
+  border: 1.5px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--ink);
+  transition:
+    border-color var(--dur-2) var(--ease-out),
+    box-shadow var(--dur-2) var(--ease-out),
+    background-color var(--dur-2);
+}
+.field__icon + .field__input {
+  padding-left: 2.6rem;
+}
+.field__control:has(.field__reveal) .field__input {
+  padding-right: 3rem;
+}
+.field__input::placeholder {
+  color: #9aa1bb;
+}
+.field__input:hover {
+  border-color: var(--line-strong);
+}
+.field__input:focus {
+  outline: none;
+  border-color: var(--cobalt);
+  box-shadow: 0 0 0 4px rgb(43 75 255 / 14%);
+}
+.field__control:focus-within .field__icon {
+  color: var(--cobalt);
+}
+.field--invalid .field__input {
+  border-color: var(--coral);
+  background: #fffafa;
+}
+.field--invalid .field__input:focus {
+  box-shadow: 0 0 0 4px rgb(255 90 95 / 16%);
+}
+.field--invalid .field__icon {
+  color: var(--coral);
+}
+.field__reveal {
+  position: absolute;
+  right: 0.35rem;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 0;
+  border-radius: var(--r-xs);
+  background: transparent;
+  color: var(--slate);
+  cursor: pointer;
+}
+.field__reveal:hover {
+  background: var(--fog);
+  color: var(--ink);
+}
+.field__message {
+  font-size: var(--step--1);
+  color: var(--slate);
+}
+.field__message--error {
+  color: var(--coral-deep);
+  font-weight: 500;
+}
+
+/* Password strength */
+.strength {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.strength__bars {
+  display: inline-grid;
+  grid-template-columns: repeat(4, 22px);
+  gap: 4px;
+}
+.strength__bars span {
+  height: 5px;
+  border-radius: 3px;
+  background: var(--line);
+  transition: background-color var(--dur-3) var(--ease-out);
+}
+.strength[data-score="1"] .is-on {
+  background: var(--coral);
+}
+.strength[data-score="2"] .is-on {
+  background: var(--tag-deep);
+}
+.strength[data-score="3"] .is-on,
+.strength[data-score="4"] .is-on {
+  background: var(--mint);
+}
+
+/* Checkbox */
+.checkbox {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  font-size: var(--step--1);
+  color: var(--ink-soft);
+  cursor: pointer;
+  user-select: none;
+}
+.checkbox input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+.checkbox__box {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 1.5px solid var(--line-strong);
+  border-radius: 6px;
+  background: var(--surface);
+  transition: all var(--dur-2) var(--ease-out);
+}
+.checkbox__box::after {
+  content: "";
+  width: 10px;
+  height: 6px;
+  border-left: 2.5px solid #fff;
+  border-bottom: 2.5px solid #fff;
+  transform: translateY(-1px) rotate(-45deg) scale(0);
+  transition: transform var(--dur-2) var(--ease-spring);
+}
+.checkbox input:checked + .checkbox__box {
+  background: var(--cobalt);
+  border-color: var(--cobalt);
+}
+.checkbox input:checked + .checkbox__box::after {
+  transform: translateY(-1px) rotate(-45deg) scale(1);
+}
+.checkbox input:focus-visible + .checkbox__box {
+  box-shadow: var(--focus);
+}

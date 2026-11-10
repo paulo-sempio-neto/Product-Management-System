@@ -1,0 +1,77 @@
+/*
+ * Design tokens — Shelf design system.
+ * Signature: the yellow retail price tag (--tag) on cool paper (--fog),
+ * cobalt ink for actions. Everything else stays quiet.
+ */
+:root {
+  /* Base palette */
+  --fog: #eef1f6;
+  --fog-deep: #e2e7f0;
+  --paper: #ffffff;
+  --ink: #0e1530;
+  --ink-soft: #3a4366;
+  --slate: #6b7393;
+  --line: #d8deea;
+  --line-strong: #c3cbdc;
+  --cobalt: #2b4bff;
+  --cobalt-deep: #1a33d6;
+  --cobalt-wash: #e6eaff;
+  --tag: #ffd23f;
+  --tag-deep: #f2b705;
+  --tag-ink: #3d2e00;
+  --coral: #ff5a5f;
+  --coral-deep: #d93a40;
+  --coral-wash: #ffe8e9;
+  --mint: #12b886;
+  --mint-wash: #dcf7ee;
+
+  /* Semantic */
+  --bg: var(--fog);
+  --surface: var(--paper);
+  --surface-sunk: #f6f8fb;
+  --text: var(--ink);
+  --text-muted: var(--slate);
+  --focus: 0 0 0 3px var(--paper), 0 0 0 5px var(--cobalt);
+
+  /* Type */
+  --font-display: "Bricolage Grotesque Variable", "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Instrument Sans Variable", "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+
+  /* Modular scale 1.25 */
+  --step--1: 0.8125rem;
+  --step-0: 0.9375rem;
+  --step-1: 1.125rem;
+  --step-2: 1.4rem;
+  --step-3: 1.75rem;
+  --step-4: clamp(2rem, 1.4rem + 2.4vw, 2.75rem);
+  --step-5: clamp(2.6rem, 1.6rem + 4vw, 4.25rem);
+
+  /* Space (4px grid) */
+  --s-1: 0.25rem;
+  --s-2: 0.5rem;
+  --s-3: 0.75rem;
+  --s-4: 1rem;
+  --s-5: 1.5rem;
+  --s-6: 2rem;
+  --s-7: 3rem;
+  --s-8: 4.5rem;
+
+  /* Radius — hierarchy, not one value for everything */
+  --r-xs: 6px;
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 22px;
+  --r-pill: 999px;
+
+  /* Elevation tinted with ink, never grey */
+  --shadow-1: 0 1px 2px rgb(14 21 48 / 6%), 0 1px 1px rgb(14 21 48 / 4%);
+  --shadow-2: 0 8px 24px -8px rgb(14 21 48 / 18%), 0 2px 6px rgb(14 21 48 / 6%);
+  --shadow-3: 0 30px 60px -20px rgb(14 21 48 / 35%), 0 10px 20px -10px rgb(14 21 48 / 18%);
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-1: 120ms;
+  --dur-2: 220ms;
+  --dur-3: 420ms;
+}

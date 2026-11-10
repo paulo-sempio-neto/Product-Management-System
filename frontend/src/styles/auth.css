@@ -1,0 +1,226 @@
+.auth {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(420px, 0.85fr);
+  min-height: 100dvh;
+  background: var(--surface);
+}
+
+/* ---------- Stage (3D) ---------- */
+.auth__stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  margin: 12px 0 12px 12px;
+  border-radius: var(--r-lg);
+  background:
+    radial-gradient(120% 70% at 50% 0%, #4a66ff 0%, transparent 60%),
+    linear-gradient(180deg, #2b4bff 0%, #1f38e0 100%);
+  color: #fff;
+  isolation: isolate;
+}
+/* faint pegboard grid — the back of a store shelf */
+.auth__stage::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image: radial-gradient(rgb(255 255 255 / 16%) 1.2px, transparent 1.6px);
+  background-size: 22px 22px;
+  mask-image: radial-gradient(90% 70% at 50% 45%, #000 30%, transparent 85%);
+}
+.auth__stage-top {
+  position: relative;
+  z-index: 2;
+  padding: var(--s-6) var(--s-6) 0;
+}
+.auth__brand {
+  display: inline-flex;
+  border-radius: var(--r-xs);
+  text-decoration: none;
+}
+.auth__scene {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-height: 0;
+}
+.shelf-canvas {
+  width: 100% !important;
+  height: 100% !important;
+  touch-action: pan-y;
+}
+.auth__scene-fallback {
+  position: absolute;
+  inset: 0;
+}
+.auth__pitch {
+  position: relative;
+  z-index: 2;
+  max-width: 36rem;
+  padding: 0 var(--s-6) var(--s-6);
+}
+.auth__pitch h1 {
+  font-size: clamp(2.2rem, 1.2rem + 2.6vw, 3.6rem);
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 0.98;
+}
+.auth__pitch p {
+  margin-top: var(--s-4);
+  max-width: 30rem;
+  font-size: var(--step-1);
+  color: rgb(255 255 255 / 82%);
+}
+
+/* ---------- Panel (form) ---------- */
+.auth__panel {
+  display: grid;
+  place-items: center;
+  padding: var(--s-7) var(--s-6);
+}
+.auth__panel-inner {
+  width: 100%;
+  max-width: 440px;
+}
+.auth__mobile-brand {
+  display: none;
+  margin-bottom: var(--s-6);
+}
+.auth__switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  padding: 4px;
+  margin-bottom: var(--s-6);
+  border-radius: var(--r-md);
+  background: var(--fog);
+}
+.auth__switch-item {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 40px;
+  border-radius: var(--r-sm);
+  color: var(--slate);
+  font-weight: 600;
+  text-decoration: none;
+  transition: color var(--dur-2);
+}
+.auth__switch-item.is-active {
+  color: var(--ink);
+}
+.auth__switch-item:hover:not(.is-active) {
+  color: var(--ink-soft);
+}
+.auth__switch-pill {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  box-shadow: var(--shadow-2);
+}
+.auth__switch-label {
+  position: relative;
+}
+.auth__header h2 {
+  font-size: var(--step-4);
+}
+.auth__header p {
+  margin-top: var(--s-2);
+  color: var(--slate);
+}
+.auth__form {
+  display: grid;
+  gap: var(--s-4);
+  margin-top: var(--s-6);
+}
+.auth__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s-4);
+}
+.auth__form-error {
+  overflow: hidden;
+  padding: 0.75rem 0.9rem;
+  border-radius: var(--r-sm);
+  background: var(--coral-wash);
+  color: var(--coral-deep);
+  font-size: var(--step--1);
+  font-weight: 500;
+}
+.auth__submit {
+  margin-top: var(--s-2);
+  width: 100%;
+}
+.auth__alt {
+  margin-top: var(--s-5);
+  text-align: center;
+  color: var(--slate);
+}
+.auth__alt a {
+  font-weight: 600;
+}
+.auth__note {
+  margin-top: var(--s-2);
+  text-align: center;
+  font-size: var(--step--1);
+  color: #9aa1bb;
+}
+.auth__curtain {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: var(--cobalt);
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 960px) {
+  .auth {
+    grid-template-columns: 1fr;
+  }
+  .auth__stage {
+    min-height: 56vh;
+    margin: 10px 10px 0;
+  }
+  .auth__stage-top {
+    padding: var(--s-5) var(--s-5) 0;
+  }
+  .auth__pitch {
+    padding: 0 var(--s-5) var(--s-5);
+  }
+  .auth__pitch h1 {
+    font-size: var(--step-4);
+  }
+  .auth__pitch p {
+    display: none;
+  }
+  .auth__panel {
+    padding: var(--s-6) var(--s-5) var(--s-7);
+  }
+}
+@media (max-width: 520px) {
+  .auth__stage {
+    min-height: 50vh;
+  }
+  .auth__row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Interim header used until the dashboard redesign lands */
+.interim-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-4);
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: var(--s-4) var(--s-5);
+}
+.interim-bar__user {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  color: var(--slate);
+  font-weight: 500;
+}
